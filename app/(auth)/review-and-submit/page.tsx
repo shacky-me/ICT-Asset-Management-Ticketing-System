@@ -10,11 +10,6 @@ import AccessApprovedModal from "@/components/AccessApprovedModal";
 const ReviewAndSubmit = () => {
   const [submitted, setSubmitted] = useState(false);
 
-  const handleButtonClick = () => {
-    setSubmitted(true);
-  };
-
-  // Mock Data
   const personalDetails = {
     payrollNo: "10020002",
     email: "you@ag.go.ke",
@@ -135,7 +130,7 @@ const ReviewAndSubmit = () => {
               </Link>
               <Button
                 className="cursor-pointer bg-[#235FE7] w-fit font-bold"
-                onClick={handleButtonClick}
+                onClick={() => setSubmitted(true)}
               >
                 Submit Request
               </Button>
