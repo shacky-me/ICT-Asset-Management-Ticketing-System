@@ -5,15 +5,19 @@ import Link from "next/link";
 interface AccessApprovedModalProps {
   name: string;
   role: string;
+  payroll: string;
   department: string;
   email: string;
+  reason?: string;
 }
 
 const AccessApprovedModal = ({
   name,
   role,
+  payroll,
   department,
   email,
+  reason,
 }: AccessApprovedModalProps) => {
   return (
     // Backdrop
@@ -48,6 +52,16 @@ const AccessApprovedModal = ({
             <p className="text-sm text-gray-500">Department</p>
             <p className="text-sm font-medium">{department}</p>
           </div>
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="text-sm text-gray-500">Payroll No.</p>
+            <p className="text-sm font-medium">{payroll}</p>
+          </div>
+          {reason && (
+            <div className="flex items-center justify-between px-4 py-3">
+              <p className="text-sm text-gray-500">Reason</p>
+              <p className="text-sm font-medium">{reason}</p>
+            </div>
+          )}
         </div>
 
         {/* Password change notice */}

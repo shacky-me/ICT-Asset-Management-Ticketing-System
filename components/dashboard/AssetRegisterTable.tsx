@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import RegisterAssetModal from "../modals/RegisterAssetModal";
 import { useState } from "react";
+import { exportToCSV } from "@/app/utils/csvUtils";
 
 const assets = [
   {
@@ -87,6 +88,19 @@ const statusStyles: Record<string, string> = {
 
 const AssetRegisterTable = () => {
   const [showModal, setShowModal] = useState(false);
+  const handleExport = () => {
+    const formatted = assets.map((a) => ({
+      "Asset Tag": a.tag,
+      Name: a.name,
+      Category: a.category,
+      "Serial No.": a.serial,
+      Status: a.status,
+      "Assigned To": a.assignedTo,
+      Department: a.department,
+    }));
+
+    exportToCSV(formatted, "asset-register.csv");
+  };
   return (
     <div>
       {showModal && (
@@ -104,7 +118,11 @@ const AssetRegisterTable = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2 text-sm cursor-pointer">
+            <Button
+              onClick={handleExport}
+              variant="outline"
+              className="gap-2 text-sm cursor-pointer"
+            >
               <Download className="h-4 w-4" /> Export
             </Button>
             <Button
