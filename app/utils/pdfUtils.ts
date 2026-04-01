@@ -1,24 +1,28 @@
 import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export function exportSimpleTableToPDF(
   title: string,
   rows: Array<Record<string, string | number>>,
   fileName: string,
 ) {
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 40;
+  const orientation =
+    rows.length > 0 && Object.keys(rows[0]).length > 6
+      ? "landscape"
+      : "portrait";
+  const doc = new jsPDF({ unit: "pt", format: "a4", orientation });
+  const margin = 28;
   let y = 50;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.text(title, margin, y);
-  y += 24;
+  y += 28;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y);
-  y += 20;
+  y += 18;
 
   const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
   if (headers.length === 0) {
@@ -27,29 +31,51 @@ export function exportSimpleTableToPDF(
     return;
   }
 
-  const colWidth = (pageWidth - margin * 2) / headers.length;
+  const body = rows
+    .slice(0, 200)
+    .map((row) => headers.map((header) => String(row[header] ?? "")));
 
-  doc.setFont("helvetica", "bold");
-  headers.forEach((header, index) => {
-    doc.text(header, margin + index * colWidth, y);
-  });
-  y += 14;
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 12;
+  autoTable(doc, {
+    head: [headers],
+    body,
+    startY: y,
+    margin: { top: 28, right: margin, bottom: 28, left: margin },
+    tableWidth: "auto",
+    theme: "grid",
+    styles: {
+      font: "helvetica",
+      fontSize: 9,
+      cellPadding: { top: 6, right: 8, bottom: 6, left: 8 },
+      overflow: "linebreak",
+      valign: "middle",
+      textColor: [20, 20, 20],
+      lineColor: [220, 220, 220],
+      lineWidth: 0.6,
+    },
+    headStyles: {
+      fillColor: [37, 95, 231],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      halign: "left",
+      valign: "middle",
+      minCellHeight: 24,
+    },
+    bodyStyles: {
+      minCellHeight: 22,
+      halign: "left",
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+    didDrawPage: () => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text(title, margin, 50);
 
-  doc.setFont("helvetica", "normal");
-  rows.slice(0, 60).forEach((row) => {
-    if (y > 760) {
-      doc.addPage();
-      y = 50;
-    }
-
-    headers.forEach((header, index) => {
-      const value = String(row[header] ?? "");
-      const text = doc.splitTextToSize(value, colWidth - 8);
-      doc.text(text, margin + index * colWidth, y);
-    });
-    y += 18;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, margin, 78);
+    },
   });
 
   doc.save(fileName);

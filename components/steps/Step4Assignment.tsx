@@ -3,7 +3,6 @@
 import React from "react";
 import {
   DEPARTMENTS,
-  BUILDINGS,
   DISPOSAL_METHODS,
   Step4Data,
 } from "@/types/assetRegistration";
@@ -121,19 +120,6 @@ export default function Step4Assignment({ data, onChange, errors }: Props) {
             />
             {errors?.department && (
               <p className="mt-1 text-xs text-red-600">{errors.department}</p>
-            )}
-          </div>
-          <div>
-            <FieldLabel>Building / Site</FieldLabel>
-            <SelectInput
-              value={data.buildingSite}
-              onChange={(v) => onChange("buildingSite", v)}
-              options={BUILDINGS}
-              placeholder="Select..."
-              hasError={Boolean(errors?.buildingSite)}
-            />
-            {errors?.buildingSite && (
-              <p className="mt-1 text-xs text-red-600">{errors.buildingSite}</p>
             )}
           </div>
           <div>
