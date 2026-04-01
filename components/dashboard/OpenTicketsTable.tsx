@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import RaiseTicketModal from "../modals/RaiseTicketModal";
 
 type Priority = "Critical" | "High" | "Medium" | "Low";
@@ -19,7 +19,7 @@ type Ticket = {
   created: string;
 };
 
-const tickets: Ticket[] = [
+export const tickets: Ticket[] = [
   {
     id: "TKT-2025-0189",
     issue: "Laptop screen flickering",
@@ -90,8 +90,22 @@ const statusStyles: Record<Status, string> = {
   Resolved: "bg-green-50 text-green-600 border border-green-200",
 };
 
-const OpenTicketsTable = () => {
+const OpenTicketsTable = ({ search = "" }: { search?: string }) => {
   const [isTicketOpen, setIsTicketOpen] = useState(false);
+  const filteredTickets = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return tickets;
+
+    return tickets.filter(
+      (ticket) =>
+        ticket.id.toLowerCase().includes(query) ||
+        ticket.issue.toLowerCase().includes(query) ||
+        ticket.department.toLowerCase().includes(query) ||
+        ticket.assignedTo.toLowerCase().includes(query) ||
+        ticket.status.toLowerCase().includes(query),
+    );
+  }, [search]);
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
       {/* Header */}
@@ -136,7 +150,7 @@ const OpenTicketsTable = () => {
           </tr>
         </thead>
         <tbody>
-          {tickets.map((t) => (
+          {filteredTickets.map((t) => (
             <tr
               key={t.id}
               className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
@@ -166,7 +180,9 @@ const OpenTicketsTable = () => {
       </table>
       {/* Footer */}
       <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between">
-        <p className="text-xs text-gray-400">Showing 6 of 42 tickets</p>
+        <p className="text-xs text-gray-400">
+          Showing {filteredTickets.length} of {tickets.length} tickets
+        </p>
         <Link
           href="/tickets"
           className="text-xs text-[#235FE7] font-semibold hover:underline flex items-center gap-1"

@@ -9,6 +9,7 @@ interface AccessApprovedModalProps {
   department: string;
   email: string;
   reason?: string;
+  temporaryPassword?: string;
 }
 
 const AccessApprovedModal = ({
@@ -18,6 +19,7 @@ const AccessApprovedModal = ({
   department,
   email,
   reason,
+  temporaryPassword,
 }: AccessApprovedModalProps) => {
   return (
     // Backdrop
@@ -68,6 +70,20 @@ const AccessApprovedModal = ({
         <p className="text-xs text-gray-400 text-center">
           You will be required to change your password on first login.
         </p>
+
+        {temporaryPassword && (
+          <div className="w-full bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-center">
+            <p className="text-xs text-blue-700 font-semibold uppercase tracking-wide">
+              Temporary Password
+            </p>
+            <p className="text-sm font-mono font-bold text-blue-900 mt-1">
+              {temporaryPassword}
+            </p>
+            <p className="text-[11px] text-blue-700 mt-1">
+              Use this with your email, then set a new password.
+            </p>
+          </div>
+        )}
 
         {/* CTA */}
         <Link href="/login" className="w-full">

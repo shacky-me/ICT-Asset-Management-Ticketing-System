@@ -1,8 +1,29 @@
+"use client";
+
 import ProfileSection from "@/components/settings/ProfileSection";
 import PreferencesSection from "@/components/settings/PreferencesSection";
 import AboutSection from "@/components/settings/AboutSection";
+import UserManagementSection from "@/components/settings/UserManagementSection";
+import { useCurrentUser } from "@/lib/session";
+import { canViewSettings, normalizeRole } from "@/lib/rbac";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 const SettingsPage = () => {
+  const currentUser = useCurrentUser();
+  const router = useRouter();
+  const role = normalizeRole(currentUser?.role);
+
+  useEffect(() => {
+    if (currentUser && !canViewSettings(role)) {
+      router.replace("/overview");
+    }
+  }, [currentUser, role, router]);
+
+  if (currentUser === undefined) return null;
+
+  if (!currentUser || !canViewSettings(role)) return null;
+
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
@@ -13,6 +34,7 @@ const SettingsPage = () => {
       </div>
 
       <ProfileSection />
+      <UserManagementSection />
       <PreferencesSection />
       <AboutSection />
     </div>

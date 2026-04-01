@@ -74,8 +74,8 @@ export default function StepSuccess({
         {step1.serialNumber && (
           <Row label="Serial No." value={step1.serialNumber} />
         )}
-        {formData.step4.assignedTo && (
-          <Row label="Assigned To" value={formData.step4.assignedTo} />
+        {formData.step4.department && (
+          <Row label="Department" value={formData.step4.department} />
         )}
       </div>
 

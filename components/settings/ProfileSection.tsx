@@ -1,15 +1,21 @@
-import { Info } from "lucide-react";
+"use client";
 
-const profile = {
-  name: "Jane Doe",
-  role: "ICT Officer",
-  department: "ICT Department",
-  email: "jane.doe@ag.go.ke",
-  staffNo: "ICT-2024-012",
-  initials: "JD",
-};
+import { Info } from "lucide-react";
+import { getInitials, useCurrentUser } from "@/lib/session";
 
 const ProfileSection = () => {
+  const currentUser = useCurrentUser();
+  const profile = {
+    name: currentUser?.name || "Jane Doe",
+    role: currentUser?.role || "ICT Officer",
+    department: currentUser?.department || "ICT Department",
+    email: currentUser?.email || "jane.doe@ag.go.ke",
+    staffNo: currentUser?.staffNumber || "N/A",
+    initials:
+      currentUser?.initials ||
+      getInitials(currentUser?.name || currentUser?.email || "Jane Doe"),
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100">
@@ -48,8 +54,9 @@ const ProfileSection = () => {
       <div className="mx-6 mb-5 flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
         <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
         <p className="text-xs text-blue-600">
-          Profile details can only be updated by the system administrator.
-          Contact ICT support to request changes.
+          ICT Administrators can update user details in the User Administration
+          section below. Other users should contact ICT support to request
+          profile changes.
         </p>
       </div>
     </div>

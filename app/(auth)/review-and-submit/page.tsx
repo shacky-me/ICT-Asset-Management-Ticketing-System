@@ -16,6 +16,7 @@ import {
   Hash,
   ShieldCheck,
 } from "lucide-react";
+import { provisionAccessAccount } from "@/lib/authAccounts";
 
 const ROLE_LABELS: Record<string, string> = {
   staff: "End User — All Departments",
@@ -56,6 +57,7 @@ const ReviewAndSubmit = () => {
     role: "",
     reason: "",
   });
+  const [temporaryPassword, setTemporaryPassword] = useState("");
 
   useEffect(() => {
     const savedPersonal = localStorage.getItem("request_access_step1");
@@ -98,6 +100,17 @@ const ReviewAndSubmit = () => {
     await crawlTo(100, 0.3, 20);
     await new Promise((res) => setTimeout(res, 300));
 
+    if (personalDetails.email) {
+      const provisioned = provisionAccessAccount({
+        email: personalDetails.email,
+        name: personalDetails.fullName || personalDetails.email,
+        staffNumber: personalDetails.staffNumber,
+        department: personalDetails.department || "ICT Department",
+        role: accessRequest.role || "staff",
+      });
+      setTemporaryPassword(provisioned.tempPassword);
+    }
+
     localStorage.removeItem("request_access_step1");
     localStorage.removeItem("accessDetails");
     setIsLoading(false);
@@ -120,6 +133,7 @@ const ReviewAndSubmit = () => {
           department={personalDetails.department}
           email={personalDetails.email}
           reason={accessRequest.reason}
+          temporaryPassword={temporaryPassword}
         />
       )}
 
@@ -280,7 +294,7 @@ const ReviewAndSubmit = () => {
                 </Button>
               </Link>
               <Button
-                className="cursor-pointer bg-[#235FE7] w-fit font-bold disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 min-w-[160px] justify-center"
+                className="cursor-pointer bg-[#235FE7] w-fit font-bold disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 min-w-40 justify-center"
                 onClick={handleSubmit}
                 disabled={isLoading}
               >

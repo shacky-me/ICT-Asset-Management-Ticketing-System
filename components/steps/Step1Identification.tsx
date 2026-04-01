@@ -10,9 +10,10 @@ import {
 interface Props {
   data: Step1Data;
   onChange: (field: keyof Step1Data, value: string) => void;
+  errors?: Partial<Record<keyof Step1Data, string>>;
 }
 
-// ─── Reusable field components ────────────────────────────────
+// Reusable field components
 
 function FieldLabel({
   children,
@@ -35,12 +36,14 @@ function TextInput({
   onChange,
   className = "",
   readOnly = false,
+  hasError = false,
 }: {
   placeholder?: string;
   value: string;
   onChange: (v: string) => void;
   className?: string;
   readOnly?: boolean;
+  hasError?: boolean;
 }) {
   return (
     <input
@@ -49,9 +52,9 @@ function TextInput({
       value={value}
       readOnly={readOnly}
       onChange={(e) => onChange(e.target.value)}
-      className={`w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white
+      className={`w-full px-3 py-2.5 rounded-lg border ${hasError ? "border-red-400" : "border-slate-200"} bg-white
         text-sm text-slate-800 placeholder-slate-400
-        focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500
+        focus:outline-none focus:ring-2 ${hasError ? "focus:ring-red-200 focus:border-red-500" : "focus:ring-blue-500/30 focus:border-blue-500"}
         transition-all ${readOnly ? "cursor-default select-all" : ""} ${className}`}
     />
   );
@@ -63,23 +66,25 @@ function SelectInput({
   options,
   placeholder,
   disabled,
+  hasError = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: string[];
   placeholder?: string;
   disabled?: boolean;
+  hasError?: boolean;
 }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white
+      className={`w-full px-3 py-2.5 rounded-lg border ${hasError ? "border-red-400" : "border-slate-200"} bg-white
         text-sm text-slate-800
-        focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500
+        focus:outline-none focus:ring-2 ${hasError ? "focus:ring-red-200 focus:border-red-500" : "focus:ring-blue-500/30 focus:border-blue-500"}
         transition-all disabled:bg-slate-50 disabled:text-slate-400
-        disabled:cursor-not-allowed appearance-none"
+        disabled:cursor-not-allowed appearance-none`}
       style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
         backgroundRepeat: "no-repeat",
@@ -112,9 +117,9 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Component ────────────────────────────────────────────────
+// Component
 
-export default function Step1Identification({ data, onChange }: Props) {
+export default function Step1Identification({ data, onChange, errors }: Props) {
   const subCategories = data.category
     ? (ASSET_CATEGORIES[data.category] ?? [])
     : [];
@@ -133,7 +138,13 @@ export default function Step1Identification({ data, onChange }: Props) {
               placeholder="e.g. KE-ICT-L-042"
               value={data.assetTagNumber}
               onChange={(v) => onChange("assetTagNumber", v)}
+              hasError={Boolean(errors?.assetTagNumber)}
             />
+            {errors?.assetTagNumber && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.assetTagNumber}
+              </p>
+            )}
           </div>
 
           {/* System Asset ID — read-only, auto-generated */}
@@ -144,7 +155,13 @@ export default function Step1Identification({ data, onChange }: Props) {
               onChange={() => {}}
               readOnly
               className="bg-blue-50 border-blue-200 text-blue-700 font-mono font-semibold"
+              hasError={Boolean(errors?.systemAssetId)}
             />
+            {errors?.systemAssetId && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.systemAssetId}
+              </p>
+            )}
           </div>
 
           {/* Category */}
@@ -158,7 +175,11 @@ export default function Step1Identification({ data, onChange }: Props) {
               }}
               options={Object.keys(ASSET_CATEGORIES)}
               placeholder="Select Category ......"
+              hasError={Boolean(errors?.category)}
             />
+            {errors?.category && (
+              <p className="mt-1 text-xs text-red-600">{errors.category}</p>
+            )}
           </div>
 
           {/* Sub-Category */}
@@ -174,7 +195,11 @@ export default function Step1Identification({ data, onChange }: Props) {
                   : "Select Category First"
               }
               disabled={!data.category}
+              hasError={Boolean(errors?.subCategory)}
             />
+            {errors?.subCategory && (
+              <p className="mt-1 text-xs text-red-600">{errors.subCategory}</p>
+            )}
           </div>
         </div>
 
@@ -186,17 +211,20 @@ export default function Step1Identification({ data, onChange }: Props) {
             value={data.assetDescription}
             onChange={(e) => onChange("assetDescription", e.target.value)}
             rows={3}
-            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white
+            className={`w-full px-3 py-2.5 rounded-lg border ${errors?.assetDescription ? "border-red-400" : "border-slate-200"} bg-white
               text-sm text-slate-800 placeholder-slate-400
-              focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500
-              transition-all resize-none"
+              focus:outline-none focus:ring-2 ${errors?.assetDescription ? "focus:ring-red-200 focus:border-red-500" : "focus:ring-blue-500/30 focus:border-blue-500"}
+              transition-all resize-none`}
           />
+          {errors?.assetDescription && (
+            <p className="mt-1 text-xs text-red-600">
+              {errors.assetDescription}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* ══════════════════════════════════════
-          HARDWARE IDENTITY
-      ══════════════════════════════════════ */}
+      {/* HARDWARE IDENTITY */}
       <div>
         <SectionHeading>Hardware Identity</SectionHeading>
 
@@ -208,7 +236,11 @@ export default function Step1Identification({ data, onChange }: Props) {
               placeholder="e.g. Dell, HP, Cisco"
               value={data.make}
               onChange={(v) => onChange("make", v)}
+              hasError={Boolean(errors?.make)}
             />
+            {errors?.make && (
+              <p className="mt-1 text-xs text-red-600">{errors.make}</p>
+            )}
           </div>
 
           {/* Model */}
@@ -218,7 +250,11 @@ export default function Step1Identification({ data, onChange }: Props) {
               placeholder="e.g. Latitude 5540"
               value={data.model}
               onChange={(v) => onChange("model", v)}
+              hasError={Boolean(errors?.model)}
             />
+            {errors?.model && (
+              <p className="mt-1 text-xs text-red-600">{errors.model}</p>
+            )}
           </div>
 
           {/* Physical Condition */}
@@ -228,7 +264,13 @@ export default function Step1Identification({ data, onChange }: Props) {
               value={data.physicalCondition}
               onChange={(v) => onChange("physicalCondition", v)}
               options={PHYSICAL_CONDITIONS}
+              hasError={Boolean(errors?.physicalCondition)}
             />
+            {errors?.physicalCondition && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.physicalCondition}
+              </p>
+            )}
           </div>
 
           {/* Serial Number */}
@@ -238,7 +280,11 @@ export default function Step1Identification({ data, onChange }: Props) {
               placeholder="Manufacturer serial number"
               value={data.serialNumber}
               onChange={(v) => onChange("serialNumber", v)}
+              hasError={Boolean(errors?.serialNumber)}
             />
+            {errors?.serialNumber && (
+              <p className="mt-1 text-xs text-red-600">{errors.serialNumber}</p>
+            )}
           </div>
 
           {/* MAC Address */}
@@ -248,7 +294,11 @@ export default function Step1Identification({ data, onChange }: Props) {
               placeholder="e.g. AA:BB:CC:DD:EE:FF"
               value={data.macAddress}
               onChange={(v) => onChange("macAddress", v)}
+              hasError={Boolean(errors?.macAddress)}
             />
+            {errors?.macAddress && (
+              <p className="mt-1 text-xs text-red-600">{errors.macAddress}</p>
+            )}
           </div>
 
           {/* Colour */}
@@ -258,7 +308,11 @@ export default function Step1Identification({ data, onChange }: Props) {
               placeholder="e.g. Silver, Black, Space Grey"
               value={data.colour}
               onChange={(v) => onChange("colour", v)}
+              hasError={Boolean(errors?.colour)}
             />
+            {errors?.colour && (
+              <p className="mt-1 text-xs text-red-600">{errors.colour}</p>
+            )}
           </div>
 
           {/* IMEI — spans full width */}
@@ -269,7 +323,11 @@ export default function Step1Identification({ data, onChange }: Props) {
               value={data.imeiNumber}
               onChange={(v) => onChange("imeiNumber", v)}
               className="max-w-sm"
+              hasError={Boolean(errors?.imeiNumber)}
             />
+            {errors?.imeiNumber && (
+              <p className="mt-1 text-xs text-red-600">{errors.imeiNumber}</p>
+            )}
           </div>
         </div>
       </div>

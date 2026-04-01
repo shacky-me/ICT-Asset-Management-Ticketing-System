@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
 }
 
 const LogoutModal = ({ isOpen, onClose, onLogout }: Props) => {
@@ -60,7 +60,7 @@ const LogoutModal = ({ isOpen, onClose, onLogout }: Props) => {
     setProgress(100);
     // Let the bar finish before the page navigates
     await new Promise((r) => setTimeout(r, 300));
-    onLogout();
+    await onLogout();
   }
 
   if (!isOpen || !mounted) return null;
@@ -79,7 +79,7 @@ const LogoutModal = ({ isOpen, onClose, onLogout }: Props) => {
                       flex flex-col items-center text-center px-8 py-8
                       overflow-hidden"
       >
-        {/* ── LOADING STATE ── */}
+        {/* LOADING STATE  */}
         {isLoading ? (
           <>
             {/* Spinning icon */}
@@ -154,7 +154,7 @@ const LogoutModal = ({ isOpen, onClose, onLogout }: Props) => {
             <p className="text-[11px] text-slate-400 mt-2">{progress}%</p>
           </>
         ) : (
-          /* ── DEFAULT STATE ── */
+          /* DEFAULT STATE */
           <>
             {/* Icon */}
             <div

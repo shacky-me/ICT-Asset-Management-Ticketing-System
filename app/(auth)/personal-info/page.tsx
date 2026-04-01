@@ -71,7 +71,7 @@ const PersonalInformation = () => {
       return;
     }
 
-    // ✅ Do NOT clear localStorage here — review page still needs it
+    //  Do NOT clear localStorage here — review page still needs it
     setErrors({});
     setIsLoading(true);
 

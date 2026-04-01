@@ -4,7 +4,6 @@ import { useState } from "react";
 const PreferencesSection = () => {
   const [dateFormat, setDateFormat] = useState("DD MMM, YYYY");
   const [timezone, setTimezone] = useState("Africa/Nairobi");
-  const [theme, setTheme] = useState("Light");
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -47,7 +46,6 @@ const PreferencesSection = () => {
           >
             <option>Africa/Nairobi</option>
             <option>UTC</option>
-            <option>Africa/Lagos</option>
           </select>
         </div>
       </div>

@@ -12,12 +12,29 @@ import { LogOut, Plus } from "lucide-react";
 import { useState } from "react";
 import RegisterAssetModal from "./modals/RegisterAssetModal";
 import LogoutModal from "./modals/logout/LogoutModal";
+import { clearCurrentUser, getInitials, useCurrentUser } from "@/lib/session";
+import { clearNotifications, useNotifications } from "@/lib/notifications";
+import { logout } from "@/lib/apiClient";
+import { canAccessRoute, canRegisterAsset, normalizeRole } from "@/lib/rbac";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
+  const currentUser = useCurrentUser();
+  const { items: notifications } = useNotifications();
+
+  const unresolvedTicketCount = notifications.filter(
+    (notification) => !notification.read && notification.type === "ticket",
+  ).length;
+
+  const profileName = currentUser?.name || "Jane Doe";
+  const profileRole = currentUser?.role || "ICT Officer";
+  const profileInitials =
+    currentUser?.initials ||
+    getInitials(currentUser?.name || currentUser?.email || "Jane Doe");
+  const role = normalizeRole(currentUser?.role);
 
   return (
     <>
@@ -44,37 +61,45 @@ const Sidebar = () => {
             Navigation
           </p>
           <nav className="flex flex-col gap-0.5">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href;
-              const Icon = link.icon;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-colors",
-                    isActive
-                      ? "bg-[#EEF3FD] text-[#235FE7] font-semibold"
-                      : "text-gray-600 hover:bg-gray-100 font-medium",
-                  )}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon
-                      className={cn(
-                        "h-4 w-4",
-                        isActive ? "text-[#235FE7]" : "text-gray-500",
-                      )}
-                    />
-                    {link.label}
-                  </div>
-                  {link.badge && (
-                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[#235FE7] text-white">
-                      {link.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+            {navLinks
+              .filter((link) => canAccessRoute(role, link.href))
+              .map((link) => {
+                const isActive = pathname === link.href;
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-colors",
+                      isActive
+                        ? "bg-[#EEF3FD] text-[#235FE7] font-semibold"
+                        : "text-gray-600 hover:bg-gray-100 font-medium",
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon
+                        className={cn(
+                          "h-4 w-4",
+                          isActive ? "text-[#235FE7]" : "text-gray-500",
+                        )}
+                      />
+                      {link.label}
+                    </div>
+                    {(
+                      link.href === "/tickets"
+                        ? unresolvedTicketCount
+                        : link.badge
+                    ) ? (
+                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[#235FE7] text-white">
+                        {link.href === "/tickets"
+                          ? unresolvedTicketCount
+                          : link.badge}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
           </nav>
         </div>
 
@@ -83,26 +108,30 @@ const Sidebar = () => {
           <Separator />
 
           {/* Register Asset button */}
-          <Button
-            onClick={() => setShowModal(true)}
-            className="w-full bg-[#235FE7] hover:bg-[#1a4fd6] cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            Register Asset
-          </Button>
+          {canRegisterAsset(role) && (
+            <Button
+              onClick={() => setShowModal(true)}
+              className="w-full bg-[#235FE7] hover:bg-[#1a4fd6] cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              Register Asset
+            </Button>
+          )}
 
           {/* User profile */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {/* Avatar */}
               <div className="h-8 w-8 rounded-full bg-[#235FE7] flex items-center justify-center shrink-0">
-                <span className="text-xs font-semibold text-white">JD</span>
+                <span className="text-xs font-semibold text-white">
+                  {profileInitials}
+                </span>
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900 leading-tight">
-                  Jane Doe
+                  {profileName}
                 </p>
-                <p className="text-xs text-gray-500">ICT Officer</p>
+                <p className="text-xs text-gray-500">{profileRole}</p>
               </div>
             </div>
 
@@ -117,9 +146,12 @@ const Sidebar = () => {
             <LogoutModal
               isOpen={showLogout}
               onClose={() => setShowLogout(false)}
-              onLogout={() => {
-                // Phase 3: replace with your real sign-out logic
-                // e.g. signOut() from next-auth, or clear tokens + redirect
+              onLogout={async () => {
+                await logout().catch(() => {
+                  // Keep local logout behavior even if backend is unreachable.
+                });
+                clearCurrentUser();
+                clearNotifications();
                 setShowLogout(false);
                 router.push("/login");
               }}

@@ -1,6 +1,11 @@
 import { AlertTriangle } from "lucide-react";
 
-const AssignmentAlert = () => {
+type Props = {
+  overdueCount: number;
+  onViewOverdue: () => void;
+};
+
+const AssignmentAlert = ({ overdueCount, onViewOverdue }: Props) => {
   return (
     <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-5 py-4">
       <div className="flex items-start gap-3">
@@ -9,7 +14,7 @@ const AssignmentAlert = () => {
         </div>
         <div>
           <p className="text-sm font-semibold text-red-600">
-            12 Overdue Asset Returns
+            {overdueCount} Overdue Asset Returns
           </p>
           <p className="text-xs text-red-400 mt-0.5">
             Assets issued to staff members who have separated or transferred.
@@ -17,7 +22,10 @@ const AssignmentAlert = () => {
           </p>
         </div>
       </div>
-      <button className="text-xs text-red-500 font-semibold whitespace-nowrap hover:underline cursor-pointer">
+      <button
+        onClick={onViewOverdue}
+        className="text-xs text-red-500 font-semibold whitespace-nowrap hover:underline cursor-pointer"
+      >
         View Overdue →
       </button>
     </div>

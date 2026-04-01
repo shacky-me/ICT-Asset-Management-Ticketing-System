@@ -5,10 +5,12 @@ import TicketFilterTabs from "@/components/tickets/TicketFilterTabs";
 import TicketTable from "@/components/tickets/TicketTable";
 import { Button } from "@/components/ui/button";
 import RaiseTicketModal from "@/components/modals/RaiseTicketModal";
+import { useDashboardSearch } from "@/lib/dashboardSearch";
 
 const TicketsPage = () => {
   const [activeTab, setActiveTab] = useState("All");
   const [isTicketOpen, setIsTicketOpen] = useState(false);
+  const search = useDashboardSearch();
 
   return (
     <>
@@ -39,7 +41,7 @@ const TicketsPage = () => {
 
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <TicketFilterTabs active={activeTab} onTabChange={setActiveTab} />
-          <TicketTable activeTab={activeTab} />
+          <TicketTable activeTab={activeTab} search={search} />
         </div>
       </div>
     </>

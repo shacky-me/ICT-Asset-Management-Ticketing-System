@@ -1,5 +1,4 @@
-// ─── Enums & Constants ───────────────────────────────────────────────────────
-
+// Enums & Constants
 export const ASSET_CATEGORIES: Record<string, string[]> = {
   "Computing Devices": ["Laptop", "Desktop", "Workstation", "Tablet", "Server"],
   "Networking Equipment": [
@@ -98,7 +97,7 @@ export const BUILDINGS = [
   "Regional Office — Nakuru",
 ];
 
-// ─── Step Data Interfaces ─────────────────────────────────────────────────────
+//  Step Data Interfaces
 
 export interface Step1Data {
   assetTagNumber: string;
@@ -158,10 +157,6 @@ export interface Step4Data {
   buildingSite: string;
   floorLevel: string;
   roomOfficeNumber: string;
-  // User Assignment
-  assignedTo: string;
-  payrollStaffNumber: string;
-  dateOfAssignment: string;
   // Accessories & Notes
   accessoriesIncluded: string;
   additionalNotes: string;
@@ -177,7 +172,7 @@ export interface AssetRegistrationFormData {
   step4: Step4Data;
 }
 
-// ─── Default / Initial Values ─────────────────────────────────────────────────
+//  Default / Initial Values
 
 export const defaultStep1: Step1Data = {
   assetTagNumber: "",
@@ -229,9 +224,6 @@ export const defaultStep4: Step4Data = {
   buildingSite: "",
   floorLevel: "",
   roomOfficeNumber: "",
-  assignedTo: "",
-  payrollStaffNumber: "",
-  dateOfAssignment: "",
   accessoriesIncluded: "",
   additionalNotes: "",
   scheduledDisposalDate: "",
@@ -245,7 +237,7 @@ export const defaultFormData: AssetRegistrationFormData = {
   step4: defaultStep4,
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+//  Helpers
 
 function generateSystemAssetId(): string {
   const year = new Date().getFullYear();

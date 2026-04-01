@@ -1,35 +1,47 @@
-const stats = [
-  {
-    value: "986",
-    label: "Active Assignments",
-    sub: "Currently Issued",
-    subColor: "text-green-500",
-    border: "border-t-green-500",
-  },
-  {
-    value: "143",
-    label: "Assigned This Month",
-    sub: "March 2026",
-    subColor: "text-[#235FE7]",
-    border: "border-t-[#235FE7]",
-  },
-  {
-    value: "38",
-    label: "Returned",
-    sub: "This financial year",
-    subColor: "text-green-500",
-    border: "border-t-green-500",
-  },
-  {
-    value: "986",
-    label: "Overdue Returns",
-    sub: "Require immediate action",
-    subColor: "text-red-500",
-    border: "border-t-red-500",
-  },
-];
+type Props = {
+  assigned: number;
+  returned: number;
+  overdue: number;
+  assignedThisMonth: number;
+};
 
-const AssignmentStatsBar = () => {
+const AssignmentStatsBar = ({
+  assigned,
+  returned,
+  overdue,
+  assignedThisMonth,
+}: Props) => {
+  const stats = [
+    {
+      value: String(assigned),
+      label: "Active Assignments",
+      sub: "Currently Issued",
+      subColor: "text-green-500",
+      border: "border-t-green-500",
+    },
+    {
+      value: String(assignedThisMonth),
+      label: "Assigned This Month",
+      sub: "Current month",
+      subColor: "text-[#235FE7]",
+      border: "border-t-[#235FE7]",
+    },
+    {
+      value: String(returned),
+      label: "Returned",
+      sub: "Marked as returned",
+      subColor: "text-green-500",
+      border: "border-t-green-500",
+    },
+    {
+      value: String(overdue),
+      label: "Overdue Returns",
+      sub: "Require immediate action",
+      subColor: "text-red-500",
+      border: "border-t-red-500",
+    },
+  ];
+
   return (
     <div className="grid grid-cols-4 gap-4">
       {stats.map((s) => (

@@ -17,6 +17,9 @@ interface Props {
   icon: string;
   color: string;
   bg: string;
+  onExportPDF?: () => void;
+  onExportCSV?: () => void;
+  isExporting?: boolean;
 }
 
 const icons: Record<IconType, React.ReactNode> = {
@@ -34,6 +37,9 @@ const ReportCard = ({
   icon,
   color,
   bg,
+  onExportPDF,
+  onExportCSV,
+  isExporting = false,
 }: Props) => {
   return (
     <div className="bg-white border border-gray-200 rounded-xl px-5 py-5 flex flex-col gap-4">
@@ -55,6 +61,8 @@ const ReportCard = ({
         <div className="flex items-center gap-2 shrink-0 ml-4">
           {formats.includes("PDF") && (
             <Button
+              onClick={onExportPDF}
+              disabled={isExporting}
               variant="outline"
               className="h-7 gap-1.5 text-xs cursor-pointer text-gray-600 px-3"
             >
@@ -63,6 +71,8 @@ const ReportCard = ({
           )}
           {formats.includes("CSV") && (
             <Button
+              onClick={onExportCSV}
+              disabled={isExporting}
               variant="outline"
               className="h-7 gap-1.5 text-xs cursor-pointer text-green-600 border-green-200 hover:bg-green-50 px-3"
             >

@@ -1,9 +1,3 @@
-// ─────────────────────────────────────────────────────────────
-//  types/ticket.ts
-//  Shared types for the tickets module
-//  Phase 1 — static mock. Phase 3: wire to API.
-// ─────────────────────────────────────────────────────────────
-
 export type TicketPriority = "Low" | "Medium" | "High" | "Critical";
 export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed";
 export type TicketCategory =
@@ -14,7 +8,7 @@ export type TicketCategory =
   | "Printer"
   | "Other";
 
-// ── The form data shape ───────────────────────────────────────
+// The form data shape
 export interface NewTicketFormData {
   title: string;
   description: string;
@@ -27,7 +21,7 @@ export interface NewTicketFormData {
   attachments: File[];
 }
 
-// ── A created ticket (what the API returns) ───────────────────
+// A created ticket (what the API returns)
 export interface Ticket {
   id: string;
   title: string;
@@ -39,12 +33,12 @@ export interface Ticket {
   affectedAssetTag: string;
   affectedAssetName: string;
   preferredResolution: string;
-  assignedTo: string | null; // null = unassigned
+  assignedTo: string | null;
   raisedBy: string;
   createdAt: string;
 }
 
-// ── Empty form state ──────────────────────────────────────────
+// Empty form state
 export const EMPTY_TICKET_FORM: NewTicketFormData = {
   title: "",
   description: "",
@@ -57,7 +51,7 @@ export const EMPTY_TICKET_FORM: NewTicketFormData = {
   attachments: [],
 };
 
-// ── Priority metadata ─────────────────────────────────────────
+// Priority metadata
 export const PRIORITY_META: Record<
   TicketPriority,
   {
@@ -98,7 +92,7 @@ export const PRIORITY_META: Record<
   },
 };
 
-// ── Category metadata ─────────────────────────────────────────
+// Category metadata
 export const CATEGORY_META: Record<
   TicketCategory,
   { icon: string; desc: string }
@@ -111,7 +105,7 @@ export const CATEGORY_META: Record<
   Other: { icon: "📋", desc: "Any other ICT issue" },
 };
 
-// ── Mock asset list (replace with API in Phase 3) ─────────────
+// Mock asset list (replace with API in Phase 3)
 export const MOCK_ASSETS = [
   { tag: "KE-ICT-L-041", name: "Dell Latitude 5540", category: "Laptop" },
   { tag: "KE-ICT-L-040", name: "Dell Latitude 5540", category: "Laptop" },
@@ -127,7 +121,7 @@ export const MOCK_ASSETS = [
   },
 ];
 
-// ── Mock ICT officers (for auto-assignment) ───────────────────
+// Mock ICT officers (for auto-assignment)
 export const ICT_OFFICERS = [
   { id: "1", name: "Kigen Meshack", speciality: ["Hardware", "Printer"] },
   { id: "2", name: "David Kariuki", speciality: ["Network", "Software"] },
@@ -149,13 +143,13 @@ export const DEPARTMENTS = [
   "Executive",
 ];
 
-// ── Auto-assignment logic (mock — backend owns this in Phase 3) ─
+// Auto-assignment logic (mock — backend owns this in Phase 3)
 export function autoAssign(category: TicketCategory): string | null {
   const officer = ICT_OFFICERS.find((o) => o.speciality.includes(category));
   return officer ? officer.name : null;
 }
 
-// ── Ticket ID generator (mock) ────────────────────────────────
+// Ticket ID generator (mock)
 export function generateTicketId(): string {
   const year = new Date().getFullYear();
   const num = String(Math.floor(Math.random() * 900) + 100);

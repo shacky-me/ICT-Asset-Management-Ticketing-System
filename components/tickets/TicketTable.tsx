@@ -33,66 +33,6 @@ const tickets: Ticket[] = [
     status: "In Progress",
     created: "5h ago",
   },
-  {
-    id: "TKT-2025-0187",
-    issue: "Network switch port failure",
-    priority: "Critical",
-    department: "ICT",
-    assignedTo: "T. Kamau",
-    assetTag: "KE-ICT-N-038",
-    status: "In Progress",
-    created: "1d ago",
-  },
-  {
-    id: "TKT-2025-0186",
-    issue: "New laptop setup request",
-    priority: "Low",
-    department: "HR",
-    assignedTo: "—",
-    assetTag: "—",
-    status: "Pending",
-    created: "1d ago",
-  },
-  {
-    id: "TKT-2025-0185",
-    issue: "UPS battery replacement",
-    priority: "Medium",
-    department: "ICT",
-    assignedTo: "B. Otieno",
-    assetTag: "KE-ICT-U-036",
-    status: "Resolved",
-    created: "3d ago",
-  },
-  {
-    id: "TKT-2025-0184",
-    issue: "Email access issue",
-    priority: "High",
-    department: "Constitutional",
-    assignedTo: "P. Odhiambo",
-    assetTag: "—",
-    status: "Open",
-    created: "3d ago",
-  },
-  {
-    id: "TKT-2025-0183",
-    issue: "Monitor display flickering",
-    priority: "Medium",
-    department: "Admin",
-    assignedTo: "S. Kariuki",
-    assetTag: "KE-ICT-M-034",
-    status: "Pending",
-    created: "4d ago",
-  },
-  {
-    id: "TKT-2025-0182",
-    issue: "Keyboard not responding",
-    priority: "Low",
-    department: "Legal",
-    assignedTo: "J. Mwangi",
-    assetTag: "KE-ICT-L-041",
-    status: "Resolved",
-    created: "5d ago",
-  },
 ];
 
 const priorityStyles: Record<Priority, string> = {
@@ -111,13 +51,34 @@ const statusStyles: Record<TicketStatus, string> = {
 
 interface Props {
   activeTab: string;
+  search?: string;
 }
 
-const TicketTable = ({ activeTab }: Props) => {
-  const filtered =
+const TicketTable = ({ activeTab, search = "" }: Props) => {
+  const tabFiltered =
     activeTab === "All"
       ? tickets
       : tickets.filter((t) => t.status === activeTab);
+
+  const normalizedQuery = search.trim().toLowerCase();
+
+  const filtered =
+    normalizedQuery.length === 0
+      ? tabFiltered
+      : tabFiltered.filter((t) =>
+          [
+            t.id,
+            t.issue,
+            t.priority,
+            t.department,
+            t.assignedTo,
+            t.assetTag,
+            t.status,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedQuery),
+        );
 
   const showPagination = activeTab !== "All";
 

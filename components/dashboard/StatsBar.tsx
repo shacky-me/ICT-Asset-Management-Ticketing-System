@@ -4,7 +4,13 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import RegisterAssetModal from "../modals/RegisterAssetModal";
 
-const StatsBar = () => {
+type Props = {
+  totalAssets: number;
+  assignedAssets: number;
+  inStoreAssets: number;
+};
+
+const StatsBar = ({ totalAssets, assignedAssets, inStoreAssets }: Props) => {
   const [showModal, setShowModal] = useState(false);
   return (
     <>
@@ -26,19 +32,21 @@ const StatsBar = () => {
         </div>
         <div className="flex items-center gap-8">
           <div className="text-center">
-            <p className="text-2xl font-bold text-[#0554A8]">1000+</p>
+            <p className="text-2xl font-bold text-[#0554A8]">{totalAssets}</p>
             <p className="text-xs text-gray-500 uppercase tracking-wide">
               Total Assets
             </p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-[#0F766E]">900+</p>
+            <p className="text-2xl font-bold text-[#0F766E]">
+              {assignedAssets}
+            </p>
             <p className="text-xs text-gray-500 uppercase tracking-wide">
               Assigned
             </p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-[#6D28D9]">200+</p>
+            <p className="text-2xl font-bold text-[#6D28D9]">{inStoreAssets}</p>
             <p className="text-xs text-gray-500 uppercase tracking-wide">
               In Store
             </p>

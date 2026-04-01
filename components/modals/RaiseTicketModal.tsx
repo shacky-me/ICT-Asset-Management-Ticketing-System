@@ -11,8 +11,10 @@ import {
   MOCK_ASSETS,
   DEPARTMENTS,
   autoAssign,
-  generateTicketId,
 } from "@/types/ticket";
+import { createTicket } from "@/lib/apiClient";
+import { addNotification } from "@/lib/notifications";
+import { readCurrentUser } from "@/lib/session";
 
 interface Props {
   isOpen: boolean;
@@ -174,15 +176,16 @@ export default function RaiseTicketModal({
     }
     setIsSubmitting(true);
     try {
-      await new Promise((r) => setTimeout(r, 1400)); // Phase 1 mock
-      //  Phase 3: replace above with
-      // const res = await fetch("/api/tickets", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ ...form, assignedTo }),
-      // })
-      // if (!res.ok) throw new Error("Failed")
-      setGeneratedId(generateTicketId());
+      const currentUser = readCurrentUser();
+      const response = await createTicket({ ...form, assignedTo });
+      setGeneratedId(response.id);
+
+      addNotification({
+        title: "Ticket raised",
+        message: `${response.id} submitted by ${currentUser?.name || "current user"}.`,
+        type: "ticket",
+      });
+
       setIsSuccess(true);
     } catch {
       setErrors({ title: "Something went wrong. Please try again." });

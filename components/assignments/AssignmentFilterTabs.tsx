@@ -1,20 +1,16 @@
 "use client";
-import { Search, Filter, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
-
-const tabs = [
-  { label: "All", badge: null },
-  { label: "Active", badge: null },
-  { label: "Returned", badge: null },
-  { label: "Overdue", badge: 12 },
-];
 
 interface Props {
   active: string;
   onTabChange: (tab: string) => void;
   search: string;
   onSearchChange: (val: string) => void;
+  department: string;
+  onDepartmentChange: (value: string) => void;
+  departments: string[];
+  overdueCount: number;
 }
 
 const AssignmentFilterTabs = ({
@@ -22,7 +18,18 @@ const AssignmentFilterTabs = ({
   onTabChange,
   search,
   onSearchChange,
+  department,
+  onDepartmentChange,
+  departments,
+  overdueCount,
 }: Props) => {
+  const tabs = [
+    { label: "All", badge: null },
+    { label: "Assigned", badge: null },
+    { label: "Returned", badge: null },
+    { label: "Overdue", badge: overdueCount || null },
+  ];
+
   return (
     <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100 gap-4">
       <div className="flex items-center gap-2">
@@ -62,18 +69,31 @@ const AssignmentFilterTabs = ({
             className="pl-9 h-8 text-xs w-48 bg-gray-50 border-gray-200"
           />
         </div>
-        <Button
-          variant="outline"
-          className="h-8 gap-1.5 text-xs cursor-pointer"
+        <div className="relative">
+          <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+          <select
+            value={department}
+            onChange={(event) => onDepartmentChange(event.target.value)}
+            className="h-8 rounded-md border border-gray-200 bg-white pl-8 pr-6 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            <option value="All Departments">All Departments</option>
+            {departments.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={() => {
+            onSearchChange("");
+            onDepartmentChange("All Departments");
+            onTabChange("All");
+          }}
+          className="h-8 px-3 rounded-md border border-gray-200 text-xs text-slate-600 hover:bg-gray-50"
         >
-          <Filter className="h-3.5 w-3.5" /> Filter
-        </Button>
-        <Button
-          variant="outline"
-          className="h-8 gap-1.5 text-xs cursor-pointer"
-        >
-          <Download className="h-3.5 w-3.5" /> CSV
-        </Button>
+          Clear
+        </button>
       </div>
     </div>
   );

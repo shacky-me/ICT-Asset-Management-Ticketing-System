@@ -1,4 +1,12 @@
+"use client";
+
 import ReportCard from "@/components/reports/ReportCard";
+import { exportToCSV } from "@/app/utils/csvUtils";
+import { exportSimpleTableToPDF } from "@/app/utils/pdfUtils";
+import { assets as assetRecords } from "@/components/assets/AssetTable";
+import { useAssignments } from "@/lib/assignments";
+import { useDashboardSearch } from "@/lib/dashboardSearch";
+import { useMemo, useState } from "react";
 
 const reports = [
   {
@@ -68,6 +76,105 @@ const reports = [
 ];
 
 const ReportsPage = () => {
+  const [exporting, setExporting] = useState<string | null>(null);
+  const { items: assignments } = useAssignments();
+  const query = useDashboardSearch().trim().toLowerCase();
+
+  const filteredReports = useMemo(() => {
+    if (!query) return reports;
+    return reports.filter(
+      (report) =>
+        report.title.toLowerCase().includes(query) ||
+        report.description.toLowerCase().includes(query),
+    );
+  }, [query]);
+
+  const handleExport = (title: string, format: "PDF" | "CSV") => {
+    setExporting(`${title}:${format}`);
+
+    const assignmentRows = assignments.map((item) => ({
+      Ref: item.ref,
+      "Asset Tag": item.assetTag,
+      Asset: item.assetName,
+      "Assigned To": item.assignedTo,
+      Department: item.department,
+      Status: item.status,
+      "Date Issued": item.dateIssued,
+    }));
+
+    const assetRows = assetRecords.map((item) => ({
+      "Asset Tag": item.tag,
+      Name: item.name,
+      Category: item.category,
+      Make: item.make,
+      Model: item.model,
+      Status: item.status,
+      Department: item.department,
+      Warranty: item.warranty,
+    }));
+
+    const statusBreakdown = [
+      {
+        Status: "Assigned",
+        Count: assetRecords.filter((item) => item.status === "Assigned").length,
+      },
+      {
+        Status: "In Store",
+        Count: assetRecords.filter((item) => item.status === "In Store").length,
+      },
+      {
+        Status: "Maintenance",
+        Count: assetRecords.filter((item) => item.status === "Maintenance")
+          .length,
+      },
+      {
+        Status: "Flagged",
+        Count: assetRecords.filter((item) => item.status === "Flagged").length,
+      },
+    ];
+
+    const reportMap: Record<string, Array<Record<string, string | number>>> = {
+      "Full Asset Register": assetRows,
+      "Assignment History": assignmentRows,
+      "Assets by Status": statusBreakdown,
+      "Ticket Summary Report": [
+        { Type: "Open", Count: 6 },
+        { Type: "In Progress", Count: 8 },
+        { Type: "Pending", Count: 2 },
+        { Type: "Resolved", Count: 12 },
+      ],
+      "Warranty Expiry Report": assetRows.filter(
+        (item) => item.Warranty === "Expired",
+      ),
+      "Unassigned Assets": assetRows.filter(
+        (item) => item.Status === "In Store",
+      ),
+      "Depreciation Summary": [
+        { Category: "Laptop", ValueKES: 12000000 },
+        { Category: "Desktop", ValueKES: 6500000 },
+        { Category: "Printer", ValueKES: 3100000 },
+      ],
+      "Lost/Stolen Assets": [
+        {
+          "Asset Tag": "KE-ICT-M-034",
+          Status: "Flagged",
+          IncidentRef: "INC-2026-041",
+        },
+      ],
+    };
+
+    const rows = reportMap[title] || [];
+    const fileBase = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+    if (format === "CSV") {
+      exportToCSV(rows, `${fileBase}.csv`);
+    } else {
+      exportSimpleTableToPDF(title, rows, `${fileBase}.pdf`);
+    }
+
+    setExporting(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -80,8 +187,22 @@ const ReportsPage = () => {
 
       {/* Report cards grid */}
       <div className="grid grid-cols-2 gap-4">
-        {reports.map((report) => (
-          <ReportCard key={report.title} {...report} />
+        {filteredReports.map((report) => (
+          <ReportCard
+            key={report.title}
+            {...report}
+            isExporting={exporting?.startsWith(report.title) || false}
+            onExportPDF={
+              report.formats.includes("PDF")
+                ? () => handleExport(report.title, "PDF")
+                : undefined
+            }
+            onExportCSV={
+              report.formats.includes("CSV")
+                ? () => handleExport(report.title, "CSV")
+                : undefined
+            }
+          />
         ))}
       </div>
     </div>

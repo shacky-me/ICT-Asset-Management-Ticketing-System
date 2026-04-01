@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import AssetDetailsModal from "@/components/assets/AssetDetailsModal";
 
-// ── Types ─────────────────────────────────────────────────────
+// Types
 type AssetStatus = "Assigned" | "In Store" | "Maintenance" | "Flagged";
 
 type Asset = {
@@ -17,10 +18,10 @@ type Asset = {
   warranty: string;
 };
 
-// ── Mock data ─────────────────────────────────────────────────
+// Mock data
 // Phase 3: replace this array with an API call →
 // const { data, total, page } = await fetch(`/api/assets?page=${page}&limit=${PAGE_SIZE}`)
-const assets: Asset[] = [
+export const assets: Asset[] = [
   {
     tag: "KE-ICT-L-041",
     name: "Dell Latitude 5540",
@@ -40,7 +41,7 @@ const assets: Asset[] = [
     model: "M404dn",
     serial: "HP-10832-KE",
     status: "In Store",
-    department: "—",
+    department: "ICT",
     warranty: "Active",
   },
   {
@@ -66,26 +67,15 @@ const assets: Asset[] = [
     warranty: "Expired",
   },
   {
-    tag: "KE-ICT-S-037",
-    name: "Epson WorkForce DS-530",
-    category: "Scanner",
-    make: "Epson",
-    model: "DS-530",
-    serial: "EP-49921-KE",
-    status: "Assigned",
-    department: "Constitutional",
+    tag: "KE-ICT-M-034",
+    name: 'Samsung 27" Monitor',
+    category: "Monitor",
+    make: "Samsung",
+    model: '27" Monitor',
+    serial: "SM-27041-KE",
+    status: "Flagged",
+    department: "Administration",
     warranty: "Active",
-  },
-  {
-    tag: "KE-ICT-U-036",
-    name: "APC Smart-UPS 1500VA",
-    category: "UPS",
-    make: "APC",
-    model: "Smart-UPS 1500VA",
-    serial: "APC-1001-KE",
-    status: "In Store",
-    department: "—",
-    warranty: "Expired",
   },
   {
     tag: "KE-ICT-L-035",
@@ -95,28 +85,15 @@ const assets: Asset[] = [
     model: "EliteBook 840 G9",
     serial: "HP-84091-KE",
     status: "Assigned",
-    department: "HR",
-    warranty: "Active",
-  },
-  {
-    tag: "KE-ICT-M-034",
-    name: 'Samsung 27" Monitor',
-    category: "Monitor",
-    make: "Samsung",
-    model: '27" Monitor',
-    serial: "SM-27041-KE",
-    status: "Assigned",
-    department: "Admin",
+    department: "Human Resources",
     warranty: "Active",
   },
 ];
 
-// ── Config ────────────────────────────────────────────────────
+// Config
 const PAGE_SIZE = 8;
-// Phase 3: this will come from the API response (total records in DB)
-const MOCK_TOTAL = 1000;
 
-// ── Style maps ────────────────────────────────────────────────
+// Style maps
 const statusStyles: Record<AssetStatus, string> = {
   Assigned: "bg-green-100 text-green-700 border border-green-200",
   "In Store": "bg-blue-50 text-blue-600 border border-blue-200",
@@ -134,7 +111,7 @@ const warrantyStyles: Record<string, string> = {
   Expired: "text-red-500",
 };
 
-// ── Pagination helper ─────────────────────────────────────────
+// Pagination helper
 function getPageNumbers(current: number, total: number): (number | "...")[] {
   if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
   if (current <= 3) return [1, 2, 3, "...", total];
@@ -142,37 +119,70 @@ function getPageNumbers(current: number, total: number): (number | "...")[] {
   return [1, "...", current - 1, current, current + 1, "...", total];
 }
 
-// ── Props ─────────────────────────────────────────────────────
+//  Props
 interface Props {
   activeTab: string;
+  search?: string;
+  categoryFilter?: string;
+  departmentFilter?: string;
 }
 
-// ── Component ─────────────────────────────────────────────────
-const AssetTable = ({ activeTab }: Props) => {
+//  Component
+const AssetTable = ({
+  activeTab,
+  search = "",
+  categoryFilter = "All Categories",
+  departmentFilter = "All Departments",
+}: Props) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
-  // Filter logic
-  // Phase 3: filtering will be a query param → /api/assets?status=Assigned&page=1
-  const filtered =
-    activeTab === "All" ? assets : assets.filter((a) => a.status === activeTab);
+  const filtered = useMemo(
+    () =>
+      assets
+        .filter((a) => activeTab === "All" || a.status === activeTab)
+        .filter(
+          (a) =>
+            categoryFilter === "All Categories" ||
+            a.category === categoryFilter,
+        )
+        .filter(
+          (a) =>
+            departmentFilter === "All Departments" ||
+            a.department === departmentFilter,
+        )
+        .filter((a) => {
+          const query = search.trim().toLowerCase();
+          if (!query) return true;
+          return (
+            a.tag.toLowerCase().includes(query) ||
+            a.name.toLowerCase().includes(query) ||
+            a.category.toLowerCase().includes(query) ||
+            a.make.toLowerCase().includes(query) ||
+            a.model.toLowerCase().includes(query) ||
+            a.serial.toLowerCase().includes(query)
+          );
+        }),
+    [activeTab, categoryFilter, departmentFilter, search],
+  );
 
-  // Pagination maths
-  // Phase 3: these will come from the API response metadata
-  const totalRecords = activeTab === "All" ? MOCK_TOTAL : filtered.length;
-  const totalPages = Math.ceil(totalRecords / PAGE_SIZE);
-  const pageNumbers = getPageNumbers(currentPage, totalPages);
+  const totalRecords = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const pageNumbers = getPageNumbers(effectivePage, totalPages);
 
-  // For Phase 1 we show all mock rows regardless of page
-  // Phase 3: the API will return only PAGE_SIZE rows for the current page
-  const visibleRows = filtered;
+  const visibleRows = useMemo(() => {
+    const start = (effectivePage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [effectivePage, filtered]);
 
-  const startRecord = (currentPage - 1) * PAGE_SIZE + 1;
-  const endRecord = Math.min(currentPage * PAGE_SIZE, totalRecords);
+  const startRecord =
+    totalRecords === 0 ? 0 : (effectivePage - 1) * PAGE_SIZE + 1;
+  const endRecord = Math.min(effectivePage * PAGE_SIZE, totalRecords);
 
   function goTo(page: number) {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
-    // Phase 3: trigger API refetch here with new page number
   }
 
   return (
@@ -248,12 +258,12 @@ const AssetTable = ({ activeTab }: Props) => {
                   {a.warranty}
                 </td>
                 <td className="px-3 py-4">
-                  <span
-                    className="text-xs text-[#235FE7] font-semibold cursor-pointer
-                                   hover:underline whitespace-nowrap"
+                  <button
+                    onClick={() => setSelectedAsset(a)}
+                    className="text-xs text-[#235FE7] font-semibold hover:underline whitespace-nowrap"
                   >
-                    View/Assign
-                  </span>
+                    View
+                  </button>
                 </td>
               </tr>
             ))
@@ -270,27 +280,20 @@ const AssetTable = ({ activeTab }: Props) => {
         </tbody>
       </table>
 
-      {/* ── Pagination — shown on ALL tabs ── */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-        {/* Record count */}
         <p className="text-xs text-gray-500">
           Showing{" "}
           <span className="font-semibold text-gray-700">
             {startRecord}–{endRecord}
           </span>{" "}
-          of{" "}
-          <span className="font-semibold text-gray-700">
-            {totalRecords.toLocaleString()}
-          </span>{" "}
+          of <span className="font-semibold text-gray-700">{totalRecords}</span>{" "}
           assets
         </p>
 
-        {/* Page buttons */}
         <div className="flex items-center gap-1">
-          {/* Prev */}
           <button
-            onClick={() => goTo(currentPage - 1)}
-            disabled={currentPage === 1}
+            onClick={() => goTo(effectivePage - 1)}
+            disabled={effectivePage === 1}
             className="h-8 w-8 flex items-center justify-center rounded-lg text-sm
                        text-gray-500 hover:bg-gray-100 disabled:opacity-30
                        disabled:cursor-not-allowed transition-colors"
@@ -298,13 +301,11 @@ const AssetTable = ({ activeTab }: Props) => {
             ‹
           </button>
 
-          {/* Page numbers */}
           {pageNumbers.map((p, i) =>
             p === "..." ? (
               <span
                 key={`ellipsis-${i}`}
-                className="h-8 w-8 flex items-center justify-center
-                                                       text-xs text-gray-400"
+                className="h-8 w-8 flex items-center justify-center text-xs text-gray-400"
               >
                 …
               </span>
@@ -315,7 +316,7 @@ const AssetTable = ({ activeTab }: Props) => {
                 className={`h-8 w-8 flex items-center justify-center rounded-lg text-xs
                             font-medium transition-colors
                             ${
-                              currentPage === p
+                              effectivePage === p
                                 ? "bg-[#235FE7] text-white"
                                 : "text-gray-600 hover:bg-gray-100"
                             }`}
@@ -325,10 +326,9 @@ const AssetTable = ({ activeTab }: Props) => {
             ),
           )}
 
-          {/* Next */}
           <button
-            onClick={() => goTo(currentPage + 1)}
-            disabled={currentPage === totalPages}
+            onClick={() => goTo(effectivePage + 1)}
+            disabled={effectivePage === totalPages}
             className="h-8 w-8 flex items-center justify-center rounded-lg text-sm
                        text-gray-500 hover:bg-gray-100 disabled:opacity-30
                        disabled:cursor-not-allowed transition-colors"
@@ -337,6 +337,11 @@ const AssetTable = ({ activeTab }: Props) => {
           </button>
         </div>
       </div>
+
+      <AssetDetailsModal
+        asset={selectedAsset}
+        onClose={() => setSelectedAsset(null)}
+      />
     </>
   );
 };

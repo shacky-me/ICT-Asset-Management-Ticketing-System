@@ -2,10 +2,11 @@
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import RegisterAssetModal from "../modals/RegisterAssetModal";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { exportToCSV } from "@/app/utils/csvUtils";
+import AssetDetailsModal from "@/components/assets/AssetDetailsModal";
 
-const assets = [
+export const assets = [
   {
     tag: "KE-ICT-L-041",
     name: "Dell Latitude 5540",
@@ -86,10 +87,55 @@ const statusStyles: Record<string, string> = {
   Maintenance: "bg-orange-100 text-orange-700",
 };
 
-const AssetRegisterTable = () => {
+const PAGE_SIZE = 5;
+
+function toAssetDetails(asset: (typeof assets)[number]) {
+  return {
+    tag: asset.tag,
+    name: asset.name,
+    category: asset.category,
+    make: asset.category,
+    model: asset.name,
+    serial: asset.serial,
+    status: asset.status,
+    department: asset.department,
+    warranty: "N/A",
+  };
+}
+
+const AssetRegisterTable = ({ search = "" }: { search?: string }) => {
   const [showModal, setShowModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedAsset, setSelectedAsset] = useState<
+    (typeof assets)[number] | null
+  >(null);
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return assets;
+
+    return assets.filter(
+      (asset) =>
+        asset.tag.toLowerCase().includes(query) ||
+        asset.name.toLowerCase().includes(query) ||
+        asset.category.toLowerCase().includes(query) ||
+        asset.department.toLowerCase().includes(query),
+    );
+  }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const visibleRows = useMemo(() => {
+    const start = (effectivePage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [effectivePage, filtered]);
+
+  const startRow =
+    filtered.length === 0 ? 0 : (effectivePage - 1) * PAGE_SIZE + 1;
+  const endRow = Math.min(effectivePage * PAGE_SIZE, filtered.length);
+
   const handleExport = () => {
-    const formatted = assets.map((a) => ({
+    const formatted = filtered.map((a) => ({
       "Asset Tag": a.tag,
       Name: a.name,
       Category: a.category,
@@ -155,7 +201,7 @@ const AssetRegisterTable = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {assets.map((a) => (
+            {visibleRows.map((a) => (
               <tr key={a.tag} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 text-[#235FE7] font-medium">
                   {a.tag}
@@ -173,29 +219,50 @@ const AssetRegisterTable = () => {
                 </td>
                 <td className="px-4 py-3 text-gray-700">{a.assignedTo}</td>
                 <td className="px-4 py-3 text-gray-500">{a.department}</td>
-                <td className="px-4 py-3 text-[#235FE7] font-medium cursor-pointer hover:underline">
-                  View →
+                <td className="px-4 py-3">
+                  <button
+                    onClick={() => setSelectedAsset(a)}
+                    className="text-[#235FE7] font-medium hover:underline"
+                  >
+                    View
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
-          <p className="text-xs text-gray-400">Showing 1-5 of 1000 assets</p>
+          <p className="text-xs text-gray-400">
+            Showing {startRow}-{endRow} of {filtered.length} assets
+          </p>
           <div className="flex items-center gap-1 text-sm">
-            <button className="px-2 py-1 rounded hover:bg-gray-100">←</button>
-            {[1, 2, 3, "...", 1000].map((p, i) => (
-              <button
-                key={i}
-                className={`px-2.5 py-1 rounded text-xs ${p === 1 ? "bg-[#235FE7] text-white" : "hover:bg-gray-100 text-gray-600"}`}
-              >
-                {p}
-              </button>
-            ))}
-            <button className="px-2 py-1 rounded hover:bg-gray-100">→</button>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={effectivePage === 1}
+              className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40"
+            >
+              ←
+            </button>
+            <span className="text-xs text-gray-500 px-2">
+              Page {effectivePage} of {totalPages}
+            </span>
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
+              disabled={effectivePage === totalPages}
+              className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40"
+            >
+              →
+            </button>
           </div>
         </div>
       </div>
+
+      <AssetDetailsModal
+        asset={selectedAsset ? toAssetDetails(selectedAsset) : null}
+        onClose={() => setSelectedAsset(null)}
+      />
     </div>
   );
 };

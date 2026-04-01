@@ -10,6 +10,7 @@ import {
 interface Props {
   data: Step3Data;
   onChange: (field: keyof Step3Data, value: string) => void;
+  errors?: Partial<Record<keyof Step3Data, string>>;
 }
 
 function FieldLabel({
@@ -32,11 +33,13 @@ function TextInput({
   value,
   onChange,
   type = "text",
+  hasError = false,
 }: {
   placeholder?: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  hasError?: boolean;
 }) {
   return (
     <input
@@ -44,7 +47,7 @@ function TextInput({
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+      className={`w-full px-3 py-2.5 rounded-lg border ${hasError ? "border-red-400" : "border-slate-200"} bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${hasError ? "focus:ring-red-200 focus:border-red-500" : "focus:ring-blue-500/30 focus:border-blue-500"} transition-all`}
     />
   );
 }
@@ -52,16 +55,18 @@ function TextInput({
 function DateInput({
   value,
   onChange,
+  hasError = false,
 }: {
   value: string;
   onChange: (v: string) => void;
+  hasError?: boolean;
 }) {
   return (
     <input
       type="date"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+      className={`w-full px-3 py-2.5 rounded-lg border ${hasError ? "border-red-400" : "border-slate-200"} bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 ${hasError ? "focus:ring-red-200 focus:border-red-500" : "focus:ring-blue-500/30 focus:border-blue-500"} transition-all`}
     />
   );
 }
@@ -71,17 +76,19 @@ function SelectInput({
   onChange,
   options,
   placeholder,
+  hasError = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: string[];
   placeholder?: string;
+  hasError?: boolean;
 }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all appearance-none"
+      className={`w-full px-3 py-2.5 rounded-lg border ${hasError ? "border-red-400" : "border-slate-200"} bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 ${hasError ? "focus:ring-red-200 focus:border-red-500" : "focus:ring-blue-500/30 focus:border-blue-500"} transition-all appearance-none`}
       style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
         backgroundRepeat: "no-repeat",
@@ -110,7 +117,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function Step3Procurement({ data, onChange }: Props) {
+export default function Step3Procurement({ data, onChange, errors }: Props) {
   return (
     <div className="space-y-8">
       {/* Procurement Details */}
@@ -122,7 +129,13 @@ export default function Step3Procurement({ data, onChange }: Props) {
             <DateInput
               value={data.procurementDate}
               onChange={(v) => onChange("procurementDate", v)}
+              hasError={Boolean(errors?.procurementDate)}
             />
+            {errors?.procurementDate && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.procurementDate}
+              </p>
+            )}
           </div>
           <div>
             <FieldLabel>Supplier / Vendor</FieldLabel>
@@ -130,7 +143,13 @@ export default function Step3Procurement({ data, onChange }: Props) {
               placeholder="e.g. Safaricom Business"
               value={data.supplierVendor}
               onChange={(v) => onChange("supplierVendor", v)}
+              hasError={Boolean(errors?.supplierVendor)}
             />
+            {errors?.supplierVendor && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.supplierVendor}
+              </p>
+            )}
           </div>
           <div>
             <FieldLabel>Invoice Number</FieldLabel>
@@ -138,7 +157,13 @@ export default function Step3Procurement({ data, onChange }: Props) {
               placeholder="Supplier invoice ref"
               value={data.invoiceNumber}
               onChange={(v) => onChange("invoiceNumber", v)}
+              hasError={Boolean(errors?.invoiceNumber)}
             />
+            {errors?.invoiceNumber && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.invoiceNumber}
+              </p>
+            )}
           </div>
           <div>
             <FieldLabel>LPO / Order Number</FieldLabel>
@@ -146,7 +171,13 @@ export default function Step3Procurement({ data, onChange }: Props) {
               placeholder="Local Purchase Order no."
               value={data.lpoOrderNumber}
               onChange={(v) => onChange("lpoOrderNumber", v)}
+              hasError={Boolean(errors?.lpoOrderNumber)}
             />
+            {errors?.lpoOrderNumber && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.lpoOrderNumber}
+              </p>
+            )}
           </div>
           <div>
             <FieldLabel>Purchase Price (KES)</FieldLabel>
@@ -157,8 +188,13 @@ export default function Step3Procurement({ data, onChange }: Props) {
               placeholder="0.00"
               value={data.purchasePrice}
               onChange={(e) => onChange("purchasePrice", e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+              className={`w-full px-3 py-2.5 rounded-lg border ${errors?.purchasePrice ? "border-red-400" : "border-slate-200"} bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${errors?.purchasePrice ? "focus:ring-red-200 focus:border-red-500" : "focus:ring-blue-500/30 focus:border-blue-500"} transition-all`}
             />
+            {errors?.purchasePrice && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.purchasePrice}
+              </p>
+            )}
           </div>
         </div>
         <div className="mt-4">
@@ -167,7 +203,13 @@ export default function Step3Procurement({ data, onChange }: Props) {
             placeholder="e.g. EU-JTF-2023-KE-004"
             value={data.grantProjectReference}
             onChange={(v) => onChange("grantProjectReference", v)}
+            hasError={Boolean(errors?.grantProjectReference)}
           />
+          {errors?.grantProjectReference && (
+            <p className="mt-1 text-xs text-red-600">
+              {errors.grantProjectReference}
+            </p>
+          )}
         </div>
       </div>
 
@@ -180,14 +222,26 @@ export default function Step3Procurement({ data, onChange }: Props) {
             <DateInput
               value={data.warrantyStartDate}
               onChange={(v) => onChange("warrantyStartDate", v)}
+              hasError={Boolean(errors?.warrantyStartDate)}
             />
+            {errors?.warrantyStartDate && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.warrantyStartDate}
+              </p>
+            )}
           </div>
           <div>
             <FieldLabel>Warranty End Date</FieldLabel>
             <DateInput
               value={data.warrantyEndDate}
               onChange={(v) => onChange("warrantyEndDate", v)}
+              hasError={Boolean(errors?.warrantyEndDate)}
             />
+            {errors?.warrantyEndDate && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.warrantyEndDate}
+              </p>
+            )}
           </div>
           <div>
             <FieldLabel>Warranty Type</FieldLabel>
@@ -196,7 +250,11 @@ export default function Step3Procurement({ data, onChange }: Props) {
               onChange={(v) => onChange("warrantyType", v)}
               options={WARRANTY_TYPES}
               placeholder="Select..."
+              hasError={Boolean(errors?.warrantyType)}
             />
+            {errors?.warrantyType && (
+              <p className="mt-1 text-xs text-red-600">{errors.warrantyType}</p>
+            )}
           </div>
           <div>
             <FieldLabel>Warranty Provider</FieldLabel>
@@ -204,7 +262,13 @@ export default function Step3Procurement({ data, onChange }: Props) {
               placeholder="e.g. Dell Kenya, HP East Africa"
               value={data.warrantyProvider}
               onChange={(v) => onChange("warrantyProvider", v)}
+              hasError={Boolean(errors?.warrantyProvider)}
             />
+            {errors?.warrantyProvider && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.warrantyProvider}
+              </p>
+            )}
           </div>
           <div className="col-span-2">
             <FieldLabel>Warranty Contact / Reference</FieldLabel>
@@ -212,7 +276,13 @@ export default function Step3Procurement({ data, onChange }: Props) {
               placeholder="Support line or contract number"
               value={data.warrantyContactReference}
               onChange={(v) => onChange("warrantyContactReference", v)}
+              hasError={Boolean(errors?.warrantyContactReference)}
             />
+            {errors?.warrantyContactReference && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.warrantyContactReference}
+              </p>
+            )}
           </div>
         </div>
       </div>

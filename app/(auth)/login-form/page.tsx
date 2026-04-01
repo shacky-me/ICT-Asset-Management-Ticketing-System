@@ -16,6 +16,13 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { login } from "@/lib/apiClient";
+import { saveCurrentUser } from "@/lib/session";
+import { addNotification } from "@/lib/notifications";
+import {
+  authenticateProvisionedAccount,
+  setPendingPasswordResetEmail,
+} from "@/lib/authAccounts";
 
 // Validators
 
@@ -66,6 +73,7 @@ const LoginFormPage = () => {
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [authError, setAuthError] = useState("");
   const activeInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -129,9 +137,40 @@ const LoginFormPage = () => {
       setEmailTouched(true);
       setPasswordTouched(true);
       if (!canSubmit) return;
+      setAuthError("");
 
       setIsLoading(true);
       setProgress(0);
+
+      const provisionedResult = authenticateProvisionedAccount(
+        email.trim(),
+        password,
+      );
+
+      if (provisionedResult.status === "invalid_password") {
+        setAuthError("Invalid credentials. Check your email and password.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (provisionedResult.status === "requires_password_reset") {
+        setPendingPasswordResetEmail(provisionedResult.email, keepLoggedIn);
+        router.push("/reset-password?firstLogin=1");
+        return;
+      }
+
+      if (provisionedResult.status === "authenticated") {
+        const currentUser = saveCurrentUser(provisionedResult.user, {
+          persistent: keepLoggedIn,
+        });
+        addNotification({
+          title: "Signed in successfully",
+          message: `Welcome back, ${currentUser.name}.`,
+          type: "auth",
+        });
+        router.push("/overview");
+        return;
+      }
 
       await crawlTo(0, 40, 0.15, 30);
       await crawlTo(40, 75, 0.04, 40);
@@ -139,9 +178,66 @@ const LoginFormPage = () => {
       await crawlTo(75, 100, 0.25, 20);
       await new Promise((res) => setTimeout(res, 350));
 
-      router.push("/overview");
+      try {
+        const authResponse = await login({
+          identifier: email.trim(),
+          password,
+          rememberMe: keepLoggedIn,
+        });
+
+        type AccessRequestPersonalDraft = {
+          fullName?: string;
+          staffNumber?: string;
+          department?: string;
+        };
+
+        type AccessRequestRoleDraft = { role?: string };
+
+        let personalDraft: AccessRequestPersonalDraft | null = null;
+        let accessDraft: AccessRequestRoleDraft | null = null;
+
+        try {
+          const personalRaw = localStorage.getItem("request_access_step1");
+          const accessRaw = localStorage.getItem("accessDetails");
+          personalDraft = personalRaw
+            ? (JSON.parse(personalRaw) as AccessRequestPersonalDraft)
+            : null;
+          accessDraft = accessRaw
+            ? (JSON.parse(accessRaw) as AccessRequestRoleDraft)
+            : null;
+        } catch {
+          personalDraft = null;
+          accessDraft = null;
+        }
+
+        const currentUser = saveCurrentUser(
+          {
+            ...authResponse.user,
+            name: personalDraft?.fullName || authResponse.user.name,
+            department:
+              personalDraft?.department || authResponse.user.department,
+            role: accessDraft?.role
+              ? accessDraft.role[0].toUpperCase() + accessDraft.role.slice(1)
+              : authResponse.user.role,
+            staffNumber: personalDraft?.staffNumber,
+            email: authResponse.user.email,
+          },
+          { persistent: keepLoggedIn },
+        );
+
+        addNotification({
+          title: "Signed in successfully",
+          message: `Welcome back, ${currentUser.name}.`,
+          type: "auth",
+        });
+
+        router.push("/overview");
+      } catch {
+        setAuthError("Unable to sign in right now. Please try again.");
+        setIsLoading(false);
+      }
     },
-    [canSubmit, router],
+    [canSubmit, crawlTo, email, keepLoggedIn, password, router],
   );
 
   // Render
@@ -342,6 +438,8 @@ const LoginFormPage = () => {
                 "Sign In"
               )}
             </Button>
+
+            {authError && <p className="text-xs text-red-500">{authError}</p>}
 
             <div className="text-center">
               <p className="text-[#747376] text-sm">

@@ -11,6 +11,15 @@ import {
   Step3Data,
   Step4Data,
 } from "@/types/assetRegistration";
+import {
+  AssetAssignmentSchema,
+  AssetHardwareSpecsSchema,
+  AssetProcurementSchema,
+  AssetRegistrationSchema,
+} from "@/lib/validations/assetRegistration";
+import { AssetIdentificationSchema } from "@/lib/validations/assetIdentity";
+import { registerAsset } from "@/lib/apiClient";
+import { addNotification } from "@/lib/notifications";
 import Step1Identification from "../steps/Step1Identification";
 import Step2HardwareSpecs from "../steps/Step2HardwareSpecs";
 import Step3Procurement from "../steps/Step3Procurement";
@@ -24,6 +33,47 @@ interface Props {
   onClose: () => void;
   /** Organisation / department name displayed in the subtitle */
   orgName?: string;
+}
+
+type StepFieldErrors<T extends object> = Partial<Record<keyof T, string>>;
+
+type ValidationIssue = {
+  path: PropertyKey[];
+  message: string;
+};
+
+function mapFieldErrors<T extends object>(
+  issues: ValidationIssue[],
+): StepFieldErrors<T> {
+  const next: StepFieldErrors<T> = {};
+
+  for (const issue of issues) {
+    const key = issue.path[0];
+    if (typeof key !== "string") continue;
+    const field = key as keyof T;
+    if (next[field]) continue;
+    next[field] = issue.message;
+  }
+
+  return next;
+}
+
+function mapNestedFieldErrors<T extends object>(
+  issues: ValidationIssue[],
+  stepKey: "step1" | "step2" | "step3" | "step4",
+): StepFieldErrors<T> {
+  const next: StepFieldErrors<T> = {};
+
+  for (const issue of issues) {
+    if (issue.path[0] !== stepKey) continue;
+    const fieldKey = issue.path[1];
+    if (typeof fieldKey !== "string") continue;
+    const field = fieldKey as keyof T;
+    if (next[field]) continue;
+    next[field] = issue.message;
+  }
+
+  return next;
 }
 
 //  Step Indicator
@@ -111,11 +161,25 @@ export default function RegisterAssetModal({
   const [formData, setFormData] =
     useState<AssetRegistrationFormData>(defaultFormData);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [step1Errors, setStep1Errors] = useState<StepFieldErrors<Step1Data>>(
+    {},
+  );
+  const [step2Errors, setStep2Errors] = useState<StepFieldErrors<Step2Data>>(
+    {},
+  );
+  const [step3Errors, setStep3Errors] = useState<StepFieldErrors<Step3Data>>(
+    {},
+  );
+  const [step4Errors, setStep4Errors] = useState<StepFieldErrors<Step4Data>>(
+    {},
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const resetFormState = useCallback(() => {
     setCurrentStep(1);
     setIsRegistered(false);
+    setIsSubmitting(false);
     setFormData({
       ...defaultFormData,
       step1: {
@@ -123,6 +187,10 @@ export default function RegisterAssetModal({
         systemAssetId: generateFreshSystemAssetId(),
       },
     });
+    setStep1Errors({});
+    setStep2Errors({});
+    setStep3Errors({});
+    setStep4Errors({});
   }, []);
 
   const handleClose = useCallback(() => {
@@ -154,45 +222,113 @@ export default function RegisterAssetModal({
 
   //  Field update helpers
 
-  const updateStep1 = useCallback(
-    (field: keyof Step1Data, value: string) =>
-      setFormData((prev) => ({
-        ...prev,
-        step1: { ...prev.step1, [field]: value },
-      })),
-    [],
-  );
+  const updateStep1 = useCallback((field: keyof Step1Data, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      step1: { ...prev.step1, [field]: value },
+    }));
 
-  const updateStep2 = useCallback(
-    (field: keyof Step2Data, value: string) =>
-      setFormData((prev) => ({
-        ...prev,
-        step2: { ...prev.step2, [field]: value },
-      })),
-    [],
-  );
+    setStep1Errors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
 
-  const updateStep3 = useCallback(
-    (field: keyof Step3Data, value: string) =>
-      setFormData((prev) => ({
-        ...prev,
-        step3: { ...prev.step3, [field]: value },
-      })),
-    [],
-  );
+  const updateStep2 = useCallback((field: keyof Step2Data, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      step2: { ...prev.step2, [field]: value },
+    }));
 
-  const updateStep4 = useCallback(
-    (field: keyof Step4Data, value: string) =>
-      setFormData((prev) => ({
-        ...prev,
-        step4: { ...prev.step4, [field]: value },
-      })),
-    [],
-  );
+    setStep2Errors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
+  const updateStep3 = useCallback((field: keyof Step3Data, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      step3: { ...prev.step3, [field]: value },
+    }));
+
+    setStep3Errors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
+  const updateStep4 = useCallback((field: keyof Step4Data, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      step4: { ...prev.step4, [field]: value },
+    }));
+
+    setStep4Errors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
+  const validateCurrentStep = useCallback(() => {
+    if (currentStep === 1) {
+      const result = AssetIdentificationSchema.safeParse(formData.step1);
+      if (!result.success) {
+        setStep1Errors(mapFieldErrors<Step1Data>(result.error.issues));
+        return false;
+      }
+      setStep1Errors({});
+      return true;
+    }
+
+    if (currentStep === 2) {
+      const result = AssetHardwareSpecsSchema.safeParse(formData.step2);
+      if (!result.success) {
+        setStep2Errors(mapFieldErrors<Step2Data>(result.error.issues));
+        return false;
+      }
+      setStep2Errors({});
+      return true;
+    }
+
+    if (currentStep === 3) {
+      const result = AssetProcurementSchema.safeParse(formData.step3);
+      if (!result.success) {
+        setStep3Errors(mapFieldErrors<Step3Data>(result.error.issues));
+        return false;
+      }
+      setStep3Errors({});
+      return true;
+    }
+
+    const result = AssetAssignmentSchema.safeParse(formData.step4);
+    if (!result.success) {
+      setStep4Errors(mapFieldErrors<Step4Data>(result.error.issues));
+      return false;
+    }
+    setStep4Errors({});
+    return true;
+  }, [
+    currentStep,
+    formData.step1,
+    formData.step2,
+    formData.step3,
+    formData.step4,
+  ]);
 
   //  Navigation
 
   const handleNext = () => {
+    if (!validateCurrentStep()) return;
+
     if (currentStep < 4) setCurrentStep((s) => s + 1);
     else handleSubmit();
   };
@@ -201,10 +337,56 @@ export default function RegisterAssetModal({
     if (currentStep > 1) setCurrentStep((s) => s - 1);
   };
 
-  const handleSubmit = () => {
-    // TODO: wire up to my API / server action here
-    console.log("Submitting asset:", formData);
-    setIsRegistered(true);
+  const handleSubmit = async () => {
+    const result = AssetRegistrationSchema.safeParse(formData);
+
+    if (!result.success) {
+      setStep1Errors(
+        mapNestedFieldErrors<Step1Data>(result.error.issues, "step1"),
+      );
+      setStep2Errors(
+        mapNestedFieldErrors<Step2Data>(result.error.issues, "step2"),
+      );
+      setStep3Errors(
+        mapNestedFieldErrors<Step3Data>(result.error.issues, "step3"),
+      );
+      setStep4Errors(
+        mapNestedFieldErrors<Step4Data>(result.error.issues, "step4"),
+      );
+
+      const firstStepWithError = result.error.issues.find(
+        (issue) =>
+          issue.path[0] === "step1" ||
+          issue.path[0] === "step2" ||
+          issue.path[0] === "step3" ||
+          issue.path[0] === "step4",
+      )?.path[0];
+
+      if (firstStepWithError === "step1") setCurrentStep(1);
+      if (firstStepWithError === "step2") setCurrentStep(2);
+      if (firstStepWithError === "step3") setCurrentStep(3);
+      if (firstStepWithError === "step4") setCurrentStep(4);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await registerAsset(formData);
+      addNotification({
+        title: "Asset registered",
+        message: `${formData.step1.assetTagNumber} has been saved as ${response.systemAssetId}.`,
+        type: "asset",
+      });
+      setIsRegistered(true);
+    } catch {
+      setStep1Errors((prev) => ({
+        ...prev,
+        assetTagNumber: "Unable to submit now. Please try again.",
+      }));
+      setCurrentStep(1);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleRegisterAnother = () => {
@@ -277,13 +459,29 @@ export default function RegisterAssetModal({
               onRegisterAnother={handleRegisterAnother}
             />
           ) : currentStep === 1 ? (
-            <Step1Identification data={formData.step1} onChange={updateStep1} />
+            <Step1Identification
+              data={formData.step1}
+              onChange={updateStep1}
+              errors={step1Errors}
+            />
           ) : currentStep === 2 ? (
-            <Step2HardwareSpecs data={formData.step2} onChange={updateStep2} />
+            <Step2HardwareSpecs
+              data={formData.step2}
+              onChange={updateStep2}
+              errors={step2Errors}
+            />
           ) : currentStep === 3 ? (
-            <Step3Procurement data={formData.step3} onChange={updateStep3} />
+            <Step3Procurement
+              data={formData.step3}
+              onChange={updateStep3}
+              errors={step3Errors}
+            />
           ) : (
-            <Step4Assignment data={formData.step4} onChange={updateStep4} />
+            <Step4Assignment
+              data={formData.step4}
+              onChange={updateStep4}
+              errors={step4Errors}
+            />
           )}
         </div>
 
@@ -297,6 +495,7 @@ export default function RegisterAssetModal({
               {currentStep > 1 && (
                 <button
                   onClick={handleBack}
+                  disabled={isSubmitting}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
                 >
                   <svg
@@ -319,9 +518,10 @@ export default function RegisterAssetModal({
               {currentStep < 4 ? (
                 <button
                   onClick={handleNext}
+                  disabled={isSubmitting}
                   className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 active:scale-95 transition-all shadow-sm shadow-blue-200"
                 >
-                  Next
+                  {isSubmitting ? "Submitting..." : "Next"}
                   <svg
                     className="w-4 h-4"
                     fill="none"
@@ -339,6 +539,7 @@ export default function RegisterAssetModal({
               ) : (
                 <button
                   onClick={handleNext}
+                  disabled={isSubmitting}
                   className="flex items-center gap-2 px-5 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 active:scale-95 transition-all shadow-sm shadow-green-200"
                 >
                   <svg
@@ -354,7 +555,7 @@ export default function RegisterAssetModal({
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  Register Asset
+                  {isSubmitting ? "Registering..." : "Register Asset"}
                 </button>
               )}
             </div>
