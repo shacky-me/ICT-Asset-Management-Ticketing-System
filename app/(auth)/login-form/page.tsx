@@ -109,30 +109,29 @@ const LoginFormPage = () => {
       : "text-sm border-red-400 focus:border-red-400";
   };
 
-  const crawlTo = (
-    from: number,
-    target: number,
-    ease: number,
-    intervalMs: number,
-  ): Promise<void> =>
-    new Promise((resolve) => {
-      let val = from;
-      const id = setInterval(() => {
-        val += (target - val) * ease;
-        setProgress(val);
-        if (val >= target - 0.5) {
-          clearInterval(id);
-          setProgress(target);
-          resolve();
-        }
-      }, intervalMs);
-      activeInterval.current = id;
-    });
-
   // Submit
 
   const handleSubmit = useCallback(
     async (e: React.MouseEvent) => {
+      const crawlTo = (
+        from: number,
+        target: number,
+        ease: number,
+        intervalMs: number,
+      ): Promise<void> =>
+        new Promise((resolve) => {
+          let val = from;
+          const id = setInterval(() => {
+            val += (target - val) * ease;
+            setProgress(val);
+            if (val >= target - 0.5) {
+              clearInterval(id);
+              setProgress(target);
+              resolve();
+            }
+          }, intervalMs);
+          activeInterval.current = id;
+        });
       e.preventDefault();
       setEmailTouched(true);
       setPasswordTouched(true);
@@ -237,7 +236,7 @@ const LoginFormPage = () => {
         setIsLoading(false);
       }
     },
-    [canSubmit, crawlTo, email, keepLoggedIn, password, router],
+    [canSubmit, email, keepLoggedIn, password, router],
   );
 
   // Render
