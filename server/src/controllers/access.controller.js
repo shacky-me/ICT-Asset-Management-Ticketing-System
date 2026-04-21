@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { prisma } from "../prisma.js";
 import { generateTempPassword } from "../utils/generateRandomPassword.js";
-import { sendAccessEmail, notifyAdmin } from "../services/emailService.js";
+import { sendAccessEmail, notifyAdmin, sendAdminBootstrapEmail, } from "../services/emailService.js";
 function resolveRequestedRole(roleRequested, role) {
     if (roleRequested === "ICT_OFFICER" || roleRequested === "ICT_ADMIN") {
         return roleRequested;
@@ -22,6 +22,72 @@ function resolveRequestedRole(roleRequested, role) {
         return "ICT_OFFICER";
     }
     return null;
+}
+async function resolveUniqueAdminStaffNo(baseStaffNo) {
+    const normalized = baseStaffNo.trim() || "ICTADMIN001";
+    let candidate = normalized;
+    let suffix = 1;
+    while (true) {
+        const existing = await prisma.user.findUnique({
+            where: { staffNo: candidate },
+            select: { id: true },
+        });
+        if (!existing) {
+            return candidate;
+        }
+        candidate = `${normalized}-${suffix}`;
+        suffix += 1;
+    }
+}
+async function ensureAdminAccountExists() {
+    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase() ||
+        process.env.EMAIL_USER?.trim().toLowerCase() ||
+        "";
+    if (!adminEmail) {
+        throw new Error("ADMIN_EMAIL or EMAIL_USER must be configured");
+    }
+    const existingAdmin = await prisma.user.findUnique({
+        where: { email: adminEmail },
+        select: { email: true, fullName: true },
+    });
+    if (existingAdmin) {
+        return {
+            created: false,
+            email: existingAdmin.email,
+            fullName: existingAdmin.fullName,
+        };
+    }
+    const departmentName = process.env.ADMIN_DEPARTMENT?.trim() || "IT Support";
+    const adminName = process.env.ADMIN_NAME?.trim() || "System Administrator";
+    const adminJobTitle = process.env.ADMIN_JOB_TITLE?.trim() || "ICT Administrator";
+    const adminStaffNoBase = process.env.ADMIN_STAFF_NO?.trim() || "ICTADMIN001";
+    const department = await prisma.department.upsert({
+        where: { name: departmentName },
+        update: {},
+        create: { name: departmentName },
+    });
+    const staffNo = await resolveUniqueAdminStaffNo(adminStaffNoBase);
+    const tempPassword = generateTempPassword();
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const createdAdmin = await prisma.user.create({
+        data: {
+            fullName: adminName,
+            staffNo,
+            jobTitle: adminJobTitle,
+            email: adminEmail,
+            password: hashedPassword,
+            role: "ICT_ADMIN",
+            departmentId: department.id,
+            isActive: true,
+            mustChangePassword: true,
+        },
+    });
+    return {
+        created: true,
+        email: createdAdmin.email,
+        fullName: createdAdmin.fullName,
+        tempPassword,
+    };
 }
 export const createAccessRequest = async (req, res) => {
     console.log("[ACCESS] POST /api/access-request received");
@@ -57,6 +123,14 @@ export const createAccessRequest = async (req, res) => {
         if (existing && !existing.approved) {
             // Re-notify admin for already-pending requests to avoid missed emails.
             try {
+                const adminAccount = await ensureAdminAccountExists();
+                if (adminAccount.created && adminAccount.tempPassword) {
+                    await sendAdminBootstrapEmail({
+                        to: adminAccount.email,
+                        name: adminAccount.fullName,
+                        tempPassword: adminAccount.tempPassword,
+                    });
+                }
                 await notifyAdmin({
                     fullName: existing.fullName,
                     email: existing.email,
@@ -96,6 +170,14 @@ export const createAccessRequest = async (req, res) => {
         });
         console.log("[ACCESS] About to notify admin...");
         try {
+            const adminAccount = await ensureAdminAccountExists();
+            if (adminAccount.created && adminAccount.tempPassword) {
+                await sendAdminBootstrapEmail({
+                    to: adminAccount.email,
+                    name: adminAccount.fullName,
+                    tempPassword: adminAccount.tempPassword,
+                });
+            }
             console.log("[ACCESS] Calling notifyAdmin with:", {
                 fullName,
                 email,
@@ -169,19 +251,49 @@ export const approveAccessRequest = async (req, res) => {
             });
             if (!request || request.approved)
                 throw new Error("Invalid request or already approved");
+            const normalizedEmail = String(request.email).trim().toLowerCase();
+            const normalizedStaffNo = String(request.staffNo).trim();
+            const existingByEmail = await tx.user.findUnique({
+                where: { email: normalizedEmail },
+            });
+            const existingByStaffNo = await tx.user.findUnique({
+                where: { staffNo: normalizedStaffNo },
+            });
+            if (existingByEmail &&
+                existingByStaffNo &&
+                existingByEmail.id !== existingByStaffNo.id) {
+                throw new Error("Cannot approve request because email and staff number belong to different existing users.");
+            }
+            const existingUser = existingByEmail || existingByStaffNo;
             const tempPassword = generateTempPassword();
             const hashedPassword = await bcrypt.hash(tempPassword, 10);
-            const user = await tx.user.create({
-                data: {
-                    fullName: request.fullName,
-                    email: request.email,
-                    staffNo: request.staffNo,
-                    jobTitle: request.jobTitle,
-                    password: hashedPassword,
-                    role: request.roleRequested,
-                    departmentId: request.departmentId,
-                },
-            });
+            const user = existingUser
+                ? await tx.user.update({
+                    where: { id: existingUser.id },
+                    data: {
+                        fullName: request.fullName,
+                        email: normalizedEmail,
+                        staffNo: normalizedStaffNo,
+                        jobTitle: request.jobTitle,
+                        password: hashedPassword,
+                        role: request.roleRequested,
+                        departmentId: request.departmentId,
+                        isActive: true,
+                        mustChangePassword: true,
+                    },
+                })
+                : await tx.user.create({
+                    data: {
+                        fullName: request.fullName,
+                        email: normalizedEmail,
+                        staffNo: normalizedStaffNo,
+                        jobTitle: request.jobTitle,
+                        password: hashedPassword,
+                        role: request.roleRequested,
+                        departmentId: request.departmentId,
+                        mustChangePassword: true,
+                    },
+                });
             await tx.accessRequest.update({
                 where: { id: requestId },
                 data: { approved: true },

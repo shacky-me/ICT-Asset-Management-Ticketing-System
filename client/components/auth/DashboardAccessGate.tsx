@@ -51,6 +51,14 @@ export default function DashboardAccessGate({ children }: Props) {
         return;
       }
 
+      if (user.mustChangePassword) {
+        if (!cancelled) {
+          setSessionChecked(true);
+          router.replace("/reset-password?firstLogin=1");
+        }
+        return;
+      }
+
       try {
         const meResponse = await getAuthMe();
         if (cancelled) return;
@@ -60,6 +68,11 @@ export default function DashboardAccessGate({ children }: Props) {
           Boolean(window.localStorage.getItem("ictams.currentUser"));
 
         saveCurrentUser(meResponse.user, { persistent });
+
+        if (meResponse.user.mustChangePassword) {
+          router.replace("/reset-password?firstLogin=1");
+          return;
+        }
 
         if (DASHBOARD_ROUTES.has(pathname)) {
           const role: AppRole = normalizeRole(meResponse.user.role);
@@ -89,6 +102,8 @@ export default function DashboardAccessGate({ children }: Props) {
 
   if (user === undefined || !user || !readAuthToken() || !sessionChecked)
     return null;
+
+  if (user.mustChangePassword) return null;
 
   const role = normalizeRole(user.role);
   if (DASHBOARD_ROUTES.has(pathname) && !canAccessRoute(role, pathname)) {

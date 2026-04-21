@@ -27,6 +27,7 @@ model User {
   assetAssignment AssetAssignment[]
 
   isActive  Boolean  @default(true)
+  mustChangePassword Boolean @default(false)
   createdAt DateTime @default(now())
 }
 

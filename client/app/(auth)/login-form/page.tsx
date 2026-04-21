@@ -154,6 +154,16 @@ const LoginFormPage = () => {
           saveAuthToken(authResponse.token, { persistent: keepLoggedIn });
         }
 
+        if (authResponse.user.mustChangePassword) {
+          addNotification({
+            title: "Password update required",
+            message: "Set your new password to continue.",
+            type: "auth",
+          });
+          router.push("/reset-password?firstLogin=1");
+          return;
+        }
+
         addNotification({
           title: "Signed in successfully",
           message: `Welcome back, ${currentUser.name}.`,

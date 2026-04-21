@@ -9,6 +9,7 @@ type ApiUser = {
   role: string;
   department: string;
   staffNumber?: string;
+  mustChangePassword?: boolean;
   initials?: string;
 };
 
@@ -93,6 +94,7 @@ function normalizeApiUser(user: ApiUserRaw): ApiUser {
   return {
     ...user,
     id: String(user.id),
+    mustChangePassword: Boolean(user.mustChangePassword),
   };
 }
 
@@ -123,6 +125,24 @@ export async function getAuthMe(): Promise<MeResponse> {
   const response = await apiRequest<{ user: ApiUserRaw }>("/auth/me", {
     method: "GET",
   });
+
+  return {
+    ...response,
+    user: normalizeApiUser(response.user),
+  };
+}
+
+export async function changeTemporaryPassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<MeResponse> {
+  const response = await apiRequest<{ user: ApiUserRaw }>(
+    "/auth/change-temporary-password",
+    {
+      method: "POST",
+      body: payload,
+    },
+  );
 
   return {
     ...response,

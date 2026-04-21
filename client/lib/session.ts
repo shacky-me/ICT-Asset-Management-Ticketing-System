@@ -9,6 +9,7 @@ export type CurrentUser = {
   role: string;
   department: string;
   staffNumber?: string;
+  mustChangePassword?: boolean;
   initials: string;
 };
 
@@ -60,6 +61,7 @@ function normalizeUser(
     role: input.role || "Staff",
     department: input.department || "ICT Department",
     staffNumber: input.staffNumber,
+    mustChangePassword: Boolean(input.mustChangePassword),
     initials,
   };
 }

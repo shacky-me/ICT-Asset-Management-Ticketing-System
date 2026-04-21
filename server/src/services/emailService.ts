@@ -63,6 +63,12 @@ interface AccessEmail {
   tempPassword: string;
 }
 
+interface AdminBootstrapEmail {
+  to: string;
+  name: string;
+  tempPassword: string;
+}
+
 interface AdminNotification {
   fullName: string;
   email: string;
@@ -99,6 +105,35 @@ export const sendAccessEmail = async ({
   }
 };
 
+export const sendAdminBootstrapEmail = async ({
+  to,
+  name,
+  tempPassword,
+}: AdminBootstrapEmail) => {
+  try {
+    const transporter = createTransporter();
+    const frontendUrl =
+      process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+    const loginUrl = `${frontendUrl}/login`;
+    const fromAddress = resolveSmtpUser();
+
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to,
+      subject: "Admin Access Created - IT Asset System",
+      html: `<h2>Hello ${name}</h2>
+             <p>Your admin account has been created so you can review and approve access requests.</p>
+             <p><b>Email:</b> ${to}</p>
+             <p><b>Temporary Password:</b> ${tempPassword}</p>
+             <p><a href="${loginUrl}">Log In to Dashboard</a></p>`,
+    });
+
+    console.log("Admin bootstrap email sent:", info.response);
+  } catch (error) {
+    console.error("Error sending admin bootstrap email:", error);
+  }
+};
+
 export const notifyAdmin = async ({
   fullName,
   email,
@@ -111,7 +146,7 @@ export const notifyAdmin = async ({
   const fromAddress = resolveSmtpUser();
   const frontendUrl =
     process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
-  const pendingUrl = `${frontendUrl}/overview`;
+  const pendingUrl = `${frontendUrl}/login`;
 
   console.log(
     `[EMAIL] Sending admin notification from ${fromAddress} to ${recipient}`,
@@ -128,7 +163,7 @@ export const notifyAdmin = async ({
            <p><b>Role Requested:</b> ${role}</p>
            <p><b>Reason:</b> ${reason || "No reason provided"}</p>
            <p>Please log in to the system to approve this request.</p>
-           <p><a href="${pendingUrl}">Open Dashboard</a></p>`,
+           <p><a href="${pendingUrl}">Go to Login</a></p>`,
   });
 
   console.log("Admin notification sent:", info.response);

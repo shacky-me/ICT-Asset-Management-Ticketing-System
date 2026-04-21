@@ -3,55 +3,77 @@
 import { FormEvent, Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  completeFirstLoginPasswordReset,
-  getPendingPasswordResetEmail,
-  getPendingPasswordResetRememberMe,
-} from "@/lib/authAccounts";
-import { saveCurrentUser } from "@/lib/session";
+import { changeTemporaryPassword } from "@/lib/apiClient";
+import { readAuthToken, readCurrentUser, saveCurrentUser } from "@/lib/session";
 import { addNotification } from "@/lib/notifications";
 
 function ResetPasswordContent() {
   const router = useRouter();
   const params = useSearchParams();
+  const currentUser = readCurrentUser();
+  const hasAuthToken = Boolean(readAuthToken());
+  const pendingEmail = currentUser?.email || "";
   const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorText, setErrorText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isFirstLoginFlow = params.get("firstLogin") === "1";
 
   const error = useMemo(() => {
+    if (!currentPassword && isFirstLoginFlow) return "";
     if (!password || !confirmPassword) return "";
+    if (isFirstLoginFlow && currentPassword.trim().length < 8)
+      return "Temporary password is required.";
     if (password.length < 8) return "Password must be at least 8 characters.";
     if (password !== confirmPassword) return "Passwords do not match.";
     return "";
-  }, [confirmPassword, password]);
+  }, [confirmPassword, currentPassword, isFirstLoginFlow, password]);
 
   const canSubmit =
-    password.length >= 8 && confirmPassword.length >= 8 && !error;
+    password.length >= 8 &&
+    confirmPassword.length >= 8 &&
+    (!isFirstLoginFlow || currentPassword.trim().length >= 8) &&
+    !error &&
+    !isSubmitting;
 
-  const pendingEmail = getPendingPasswordResetEmail();
-  const isFirstLoginFlow = params.get("firstLogin") === "1";
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
 
     if (isFirstLoginFlow) {
-      const user = completeFirstLoginPasswordReset(password);
-      if (!user) {
-        setErrorText("Password reset session expired. Please sign in again.");
+      if (!hasAuthToken || !pendingEmail) {
+        setErrorText("Session expired. Please sign in again.");
         return;
       }
 
-      saveCurrentUser(user, {
-        persistent: getPendingPasswordResetRememberMe(),
-      });
-      addNotification({
-        title: "Password updated",
-        message: "Your account is now active with your new password.",
-        type: "auth",
-      });
-      router.push("/overview");
-      return;
+      try {
+        setIsSubmitting(true);
+        setErrorText("");
+        const response = await changeTemporaryPassword({
+          currentPassword,
+          newPassword: password,
+        });
+
+        const persistent =
+          typeof window !== "undefined" &&
+          Boolean(window.localStorage.getItem("ictams.currentUser"));
+
+        saveCurrentUser(response.user, { persistent });
+        addNotification({
+          title: "Password updated",
+          message: "Your account is now active with your new password.",
+          type: "auth",
+        });
+        router.push("/overview");
+        return;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to update password.";
+        setErrorText(message);
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     setErrorText("Password updated. You can now sign in.");
@@ -62,11 +84,11 @@ function ResetPasswordContent() {
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm space-y-5">
         <h1 className="text-xl font-bold text-slate-900">Reset Password</h1>
 
-        {isFirstLoginFlow && !pendingEmail ? (
+        {isFirstLoginFlow && (!pendingEmail || !hasAuthToken) ? (
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
-              Password reset session not found. Sign in again using your
-              temporary password.
+              Reset session not found. Sign in again using your temporary
+              password.
             </p>
             <Link
               href="/login"
@@ -83,6 +105,22 @@ function ResetPasswordContent() {
                 <span className="font-semibold">{pendingEmail}</span>
               </p>
             )}
+
+            {isFirstLoginFlow && (
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Temporary Password
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+                  placeholder="Enter temporary password"
+                />
+              </div>
+            )}
+
             <div className="space-y-1">
               <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
                 New Password
@@ -123,7 +161,7 @@ function ResetPasswordContent() {
               disabled={!canSubmit}
               className="w-full rounded-lg bg-blue-600 text-white py-2.5 text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
-              Update Password
+              {isSubmitting ? "Updating..." : "Update Password"}
             </button>
           </form>
         )}

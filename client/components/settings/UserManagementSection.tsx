@@ -59,9 +59,11 @@ const UserManagementSection = () => {
       setStatusMessage(
         `Approved ${request.fullName}. Temporary password email has been sent to ${request.email}.`,
       );
-    } catch {
+    } catch (error) {
+      const detail =
+        error instanceof Error && error.message ? ` ${error.message}` : "";
       setStatusMessage(
-        `Unable to approve ${request.fullName} right now. Please try again.`,
+        `Unable to approve ${request.fullName} right now. Please try again.${detail}`,
       );
     } finally {
       setActiveRequestId(null);
