@@ -2,16 +2,17 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportToCSV } from "@/app/utils/csvUtils";
-import { assets } from "./AssetTable";
+import type { AssetRow } from "@/lib/assets";
 
 const tabs = ["All", "Assigned", "In Store", "Maintenance", "Flagged"];
 
 interface Props {
   active: string;
   onTabChange: (tab: string) => void;
+  assets: AssetRow[];
 }
 
-const AssetFilterTabs = ({ active, onTabChange }: Props) => {
+const AssetFilterTabs = ({ active, onTabChange, assets }: Props) => {
   const handleExport = () => {
     const formatted = assets.map((a) => ({
       "Asset Tag": a.tag,

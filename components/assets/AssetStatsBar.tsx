@@ -1,31 +1,38 @@
-const stats = [
-  {
-    label: "Total",
-    value: "1,000",
-    color: "text-[#235FE7]",
-    border: "border-t-[#235FE7]",
-  },
-  {
-    label: "Assigned",
-    value: "986",
-    color: "text-green-500",
-    border: "border-t-green-500",
-  },
-  {
-    label: "In Store",
-    value: "287",
-    color: "text-purple-500",
-    border: "border-t-purple-500",
-  },
-  {
-    label: "Maintenance",
-    value: "1,000",
-    color: "text-orange-500",
-    border: "border-t-orange-500",
-  },
-];
+type Props = {
+  total: number;
+  assigned: number;
+  inStore: number;
+  maintenance: number;
+};
 
-const AssetStatsBar = () => {
+const AssetStatsBar = ({ total, assigned, inStore, maintenance }: Props) => {
+  const stats = [
+    {
+      label: "Total",
+      value: String(total),
+      color: "text-[#235FE7]",
+      border: "border-t-[#235FE7]",
+    },
+    {
+      label: "Assigned",
+      value: String(assigned),
+      color: "text-green-500",
+      border: "border-t-green-500",
+    },
+    {
+      label: "In Store",
+      value: String(inStore),
+      color: "text-purple-500",
+      border: "border-t-purple-500",
+    },
+    {
+      label: "Maintenance",
+      value: String(maintenance),
+      color: "text-orange-500",
+      border: "border-t-orange-500",
+    },
+  ];
+
   return (
     <div className="grid grid-cols-4 gap-4">
       {stats.map((s) => (

@@ -1,6 +1,6 @@
 import { AssetRegistrationFormData } from "@/types/assetRegistration";
 import { NewTicketFormData } from "@/types/ticket";
-import { authenticateProvisionedAccount } from "@/lib/authAccounts";
+import { readAuthToken } from "@/lib/session";
 
 type ApiUser = {
   id: string;
@@ -9,37 +9,66 @@ type ApiUser = {
   role: string;
   department: string;
   staffNumber?: string;
-  initials: string;
+  initials?: string;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+type ApiUserRaw = Omit<ApiUser, "id"> & {
+  id: string | number;
+};
+
+function resolveApiBaseUrl(): string {
+  const rawBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+
+  if (!rawBase) {
+    return "http://localhost:5000/api";
+  }
+
+  const withoutTrailingSlash = rawBase.replace(/\/+$/, "");
+  return withoutTrailingSlash.endsWith("/api")
+    ? withoutTrailingSlash
+    : `${withoutTrailingSlash}/api`;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
 };
 
+type ApiListResponse<T> = {
+  totalCount: number;
+  page: number;
+  totalPages: number;
+} & T;
+
 async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  if (!API_BASE_URL) {
-    throw new Error("API base URL is not configured");
-  }
+  const authToken = readAuthToken();
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
     headers: {
       "Content-Type": "application/json",
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
-      errorText || `Request failed with status ${response.status}`,
-    );
+    try {
+      const parsed = JSON.parse(errorText) as { message?: string };
+      throw new Error(
+        parsed.message || `Request failed with status ${response.status}`,
+      );
+    } catch {
+      throw new Error(
+        errorText || `Request failed with status ${response.status}`,
+      );
+    }
   }
 
   return (await response.json()) as T;
@@ -56,81 +85,29 @@ type LoginResponse = {
   token?: string;
 };
 
-function getInitials(nameOrEmail: string): string {
-  const source = nameOrEmail.trim();
-  if (!source) return "NA";
+type MeResponse = {
+  user: ApiUser;
+};
 
-  if (source.includes("@")) {
-    const local = source.split("@")[0] || "NA";
-    const parts = local
-      .split(/[._-]/)
-      .filter(Boolean)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .filter(Boolean);
-
-    if (parts.length >= 2) return `${parts[0]}${parts[1]}`;
-    return (parts[0] ?? "NA").slice(0, 2);
-  }
-
-  const words = source.split(/\s+/).filter(Boolean);
-  if (words.length >= 2) {
-    return `${words[0][0]}${words[1][0]}`.toUpperCase();
-  }
-
-  return source.slice(0, 2).toUpperCase();
-}
-
-function fallbackNameFromIdentifier(identifier: string) {
-  if (identifier.includes("@")) {
-    return identifier.split("@")[0].replace(/[._-]/g, " ");
-  }
-  return identifier;
+function normalizeApiUser(user: ApiUserRaw): ApiUser {
+  return {
+    ...user,
+    id: String(user.id),
+  };
 }
 
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  if (API_BASE_URL) {
-    return apiRequest<LoginResponse>("/auth/login", {
+  const response = await apiRequest<{ user: ApiUserRaw; token?: string }>(
+    "/auth/login",
+    {
       method: "POST",
       body: payload,
-    });
-  }
-
-  const provisioned = authenticateProvisionedAccount(
-    payload.identifier,
-    payload.password,
+    },
   );
 
-  if (provisioned.status === "authenticated") {
-    return { user: provisioned.user };
-  }
-
-  if (provisioned.status === "invalid_password") {
-    throw new Error("Invalid credentials");
-  }
-
-  if (provisioned.status === "requires_password_reset") {
-    throw new Error("Password reset required");
-  }
-
-  const name = fallbackNameFromIdentifier(payload.identifier)
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join(" ");
-
-  const email = payload.identifier.includes("@")
-    ? payload.identifier
-    : `${payload.identifier}@ag.go.ke`;
-
   return {
-    user: {
-      id: `usr-${Date.now()}`,
-      name: name || "Current User",
-      email,
-      role: "ICT Officer",
-      department: "ICT Department",
-      initials: getInitials(name || email),
-    },
+    ...response,
+    user: normalizeApiUser(response.user),
   };
 }
 
@@ -142,25 +119,215 @@ export async function logout() {
   });
 }
 
+export async function getAuthMe(): Promise<MeResponse> {
+  const response = await apiRequest<{ user: ApiUserRaw }>("/auth/me", {
+    method: "GET",
+  });
+
+  return {
+    ...response,
+    user: normalizeApiUser(response.user),
+  };
+}
+
+type SubmitAccessRequestPayload = {
+  fullName: string;
+  staffNumber: string;
+  jobTitle: string;
+  email: string;
+  department: string;
+  role?: string;
+  roleRequested?: "ICT_OFFICER" | "ICT_ADMIN";
+  reason?: string;
+};
+
+type SubmitAccessRequestResponse = {
+  message: string;
+  requestId: number;
+};
+
+export type PendingAccessRequest = {
+  id: number;
+  fullName: string;
+  staffNo: string;
+  jobTitle: string;
+  email: string;
+  department: string;
+  roleRequested: "ICT_OFFICER" | "ICT_ADMIN";
+  reason: string;
+  createdAt: string;
+};
+
+type PendingAccessRequestsResponse = {
+  requests: PendingAccessRequest[];
+};
+
+export async function submitAccessRequest(
+  payload: SubmitAccessRequestPayload,
+): Promise<SubmitAccessRequestResponse> {
+  return apiRequest<SubmitAccessRequestResponse>("/access-request", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function getPendingAccessRequests(): Promise<
+  PendingAccessRequest[]
+> {
+  const response = await apiRequest<PendingAccessRequestsResponse>(
+    "/access-request/pending",
+    {
+      method: "GET",
+    },
+  );
+
+  return response.requests;
+}
+
+export async function approveAccessRequest(requestId: number): Promise<void> {
+  await apiRequest<{ message: string }>(
+    `/access-request/${requestId}/approve`,
+    {
+      method: "POST",
+    },
+  );
+}
+
 type RegisterAssetResponse = {
   id: string;
   systemAssetId: string;
 };
 
+export type ApiAsset = {
+  id: number;
+  tagNo: string;
+  systemAssetId?: string | null;
+  category: string;
+  make: string;
+  model: string;
+  serialNumber: string;
+  status: string;
+  createdAt: string;
+  department?: { name: string };
+};
+
+export type ApiAssetStats = {
+  total: number;
+  assigned: number;
+  inStore: number;
+  maintenance: number;
+};
+
+export type ApiAssignment = {
+  id: number;
+  refNo: string;
+  assignedTo: string;
+  department?: { name: string };
+  assignedAt: string;
+  status: string;
+  isOverdue: boolean;
+  asset?: {
+    id?: number;
+    tagNo: string;
+    model: string;
+    category: string;
+  };
+};
+
+export type ApiAssignmentStats = {
+  active: number;
+  thisMonth: number;
+  returned: number;
+  overdue: number;
+};
+
+export type ApiTicket = {
+  id: string;
+  issue: string;
+  priority: "Critical" | "High" | "Medium" | "Low";
+  department: string;
+  assignedTo: string;
+  assetTag: string;
+  status: "Open" | "In Progress" | "Pending" | "Resolved";
+  created: string;
+};
+
+export type ApiTicketStats = {
+  open: number;
+  inProgress: number;
+  pending: number;
+  resolved: number;
+};
+
 export async function registerAsset(
   payload: AssetRegistrationFormData,
 ): Promise<RegisterAssetResponse> {
-  if (API_BASE_URL) {
-    return apiRequest<RegisterAssetResponse>("/assets", {
-      method: "POST",
-      body: payload,
-    });
-  }
+  return apiRequest<RegisterAssetResponse>("/assets", {
+    method: "POST",
+    body: payload,
+  });
+}
 
-  return {
-    id: `asset-${Date.now()}`,
-    systemAssetId: payload.step1.systemAssetId,
-  };
+export async function getAssets(params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<ApiListResponse<{ assets: ApiAsset[] }>> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.search) query.set("search", params.search);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return apiRequest<ApiListResponse<{ assets: ApiAsset[] }>>(
+    `/assets${suffix}`,
+  );
+}
+
+export async function getAssetStats(): Promise<ApiAssetStats> {
+  return apiRequest<ApiAssetStats>("/assets/status");
+}
+
+export async function getAssignments(params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<ApiListResponse<{ assignments: ApiAssignment[] }>> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.search) query.set("search", params.search);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return apiRequest<ApiListResponse<{ assignments: ApiAssignment[] }>>(
+    `/assignments${suffix}`,
+  );
+}
+
+export async function getAssignmentStats(): Promise<ApiAssignmentStats> {
+  return apiRequest<ApiAssignmentStats>("/assignments/stats");
+}
+
+export async function createAssignment(payload: {
+  assetId: number;
+  assignedTo: string;
+  payRollNo: string;
+  dateOfAssignment: string;
+  departmentId: number;
+  floorLevel?: string;
+  roomNumber?: string;
+  accessories?: string;
+  notes?: string;
+  expectedReturnCondition?: string;
+}): Promise<{ assignment: ApiAssignment }> {
+  return apiRequest<{ assignment: ApiAssignment }>("/assignments", {
+    method: "POST",
+    body: payload,
+  });
 }
 
 type CreateTicketResponse = {
@@ -170,14 +337,24 @@ type CreateTicketResponse = {
 export async function createTicket(
   payload: NewTicketFormData & { assignedTo: string | null },
 ) {
-  if (API_BASE_URL) {
-    return apiRequest<CreateTicketResponse>("/tickets", {
-      method: "POST",
-      body: payload,
-    });
-  }
+  return apiRequest<CreateTicketResponse>("/tickets", {
+    method: "POST",
+    body: payload,
+  });
+}
 
-  return {
-    id: `TKT-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`,
-  };
+export async function getTickets(params?: {
+  status?: string;
+  search?: string;
+}): Promise<{ tickets: ApiTicket[] }> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.search) query.set("search", params.search);
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return apiRequest<{ tickets: ApiTicket[] }>(`/tickets${suffix}`);
+}
+
+export async function getTicketStats(): Promise<ApiTicketStats> {
+  return apiRequest<ApiTicketStats>("/tickets/stats");
 }

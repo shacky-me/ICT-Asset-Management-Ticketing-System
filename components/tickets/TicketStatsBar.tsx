@@ -1,37 +1,47 @@
 import { Ticket } from "lucide-react";
 
-const stats = [
-  {
-    label: "Open",
-    value: 10,
-    color: "text-red-500",
-    border: "border-t-red-500",
-    bg: "bg-red-50",
-  },
-  {
-    label: "In Progress",
-    value: 3,
-    color: "text-orange-500",
-    border: "border-t-orange-500",
-    bg: "bg-orange-50",
-  },
-  {
-    label: "Pending",
-    value: 2,
-    color: "text-blue-500",
-    border: "border-t-blue-500",
-    bg: "bg-blue-50",
-  },
-  {
-    label: "Resolved",
-    value: 8,
-    color: "text-green-500",
-    border: "border-t-green-500",
-    bg: "bg-green-50",
-  },
-];
+const TicketStatsBar = ({
+  open,
+  inProgress,
+  pending,
+  resolved,
+}: {
+  open: number;
+  inProgress: number;
+  pending: number;
+  resolved: number;
+}) => {
+  const stats = [
+    {
+      label: "Open",
+      value: open,
+      color: "text-red-500",
+      border: "border-t-red-500",
+      bg: "bg-red-50",
+    },
+    {
+      label: "In Progress",
+      value: inProgress,
+      color: "text-orange-500",
+      border: "border-t-orange-500",
+      bg: "bg-orange-50",
+    },
+    {
+      label: "Pending",
+      value: pending,
+      color: "text-blue-500",
+      border: "border-t-blue-500",
+      bg: "bg-blue-50",
+    },
+    {
+      label: "Resolved",
+      value: resolved,
+      color: "text-green-500",
+      border: "border-t-green-500",
+      bg: "bg-green-50",
+    },
+  ];
 
-const TicketStatsBar = () => {
   return (
     <div className="grid grid-cols-4 gap-4">
       {stats.map((s) => (

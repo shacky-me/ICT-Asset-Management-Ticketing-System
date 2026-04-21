@@ -2,93 +2,12 @@
 
 import { useMemo, useState } from "react";
 import AssetDetailsModal from "@/components/assets/AssetDetailsModal";
+import type { AssetRow } from "@/lib/assets";
 
 // Types
 type AssetStatus = "Assigned" | "In Store" | "Maintenance" | "Flagged";
 
-type Asset = {
-  tag: string;
-  name: string;
-  category: string;
-  make: string;
-  model: string;
-  serial: string;
-  status: AssetStatus;
-  department: string;
-  warranty: string;
-};
-
-// Mock data
-// Phase 3: replace this array with an API call →
-// const { data, total, page } = await fetch(`/api/assets?page=${page}&limit=${PAGE_SIZE}`)
-export const assets: Asset[] = [
-  {
-    tag: "KE-ICT-L-041",
-    name: "Dell Latitude 5540",
-    category: "Laptop",
-    make: "Dell",
-    model: "Latitude 5540",
-    serial: "DL-20491-KE",
-    status: "Assigned",
-    department: "Legal",
-    warranty: "Expired",
-  },
-  {
-    tag: "KE-ICT-P-040",
-    name: "HP LaserJet Pro M404dn",
-    category: "Printer",
-    make: "HP",
-    model: "M404dn",
-    serial: "HP-10832-KE",
-    status: "In Store",
-    department: "ICT",
-    warranty: "Active",
-  },
-  {
-    tag: "KE-ICT-D-039",
-    name: "Lenovo ThinkCentre M90q",
-    category: "Desktop",
-    make: "Lenovo",
-    model: "ThinkCentre M90q",
-    serial: "LN-38821-KE",
-    status: "Assigned",
-    department: "Finance",
-    warranty: "Active",
-  },
-  {
-    tag: "KE-ICT-N-038",
-    name: "Cisco Catalyst 2960-X",
-    category: "Networking",
-    make: "Cisco",
-    model: "Catalyst 2960-X",
-    serial: "CS-00291-KE",
-    status: "Maintenance",
-    department: "ICT",
-    warranty: "Expired",
-  },
-  {
-    tag: "KE-ICT-M-034",
-    name: 'Samsung 27" Monitor',
-    category: "Monitor",
-    make: "Samsung",
-    model: '27" Monitor',
-    serial: "SM-27041-KE",
-    status: "Flagged",
-    department: "Administration",
-    warranty: "Active",
-  },
-  {
-    tag: "KE-ICT-L-035",
-    name: "HP EliteBook 840 G9",
-    category: "Laptop",
-    make: "HP",
-    model: "EliteBook 840 G9",
-    serial: "HP-84091-KE",
-    status: "Assigned",
-    department: "Human Resources",
-    warranty: "Active",
-  },
-];
+type Asset = AssetRow;
 
 // Config
 const PAGE_SIZE = 8;
@@ -121,6 +40,7 @@ function getPageNumbers(current: number, total: number): (number | "...")[] {
 
 //  Props
 interface Props {
+  assets: Asset[];
   activeTab: string;
   search?: string;
   categoryFilter?: string;
@@ -129,6 +49,7 @@ interface Props {
 
 //  Component
 const AssetTable = ({
+  assets,
   activeTab,
   search = "",
   categoryFilter = "All Categories",

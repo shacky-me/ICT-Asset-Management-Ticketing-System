@@ -5,81 +5,9 @@ import RegisterAssetModal from "../modals/RegisterAssetModal";
 import { useMemo, useState } from "react";
 import { exportToCSV } from "@/app/utils/csvUtils";
 import AssetDetailsModal from "@/components/assets/AssetDetailsModal";
+import type { AssetRow } from "@/lib/assets";
 
-export const assets = [
-  {
-    tag: "KE-ICT-L-041",
-    name: "Dell Latitude 5540",
-    category: "Laptop",
-    serial: "DL-20491-KE",
-    status: "Assigned",
-    assignedTo: "J. Mwangi",
-    department: "Legal",
-  },
-  {
-    tag: "KE-ICT-P-040",
-    name: "HP LaserJet Pro M404dn",
-    category: "Printer",
-    serial: "HP-10832-KE",
-    status: "In Store",
-    assignedTo: "—",
-    department: "—",
-  },
-  {
-    tag: "KE-ICT-D-039",
-    name: "Lenovo ThinkCentre M90q",
-    category: "Desktop",
-    serial: "LN-38821-KE",
-    status: "Assigned",
-    assignedTo: "B. Otieno",
-    department: "Finance",
-  },
-  {
-    tag: "KE-ICT-N-038",
-    name: "Cisco Catalyst 2960-X",
-    category: "Networking",
-    serial: "CS-00291-KE",
-    status: "Maintenance",
-    assignedTo: "T. Kamau",
-    department: "ICT",
-  },
-  {
-    tag: "KE-ICT-S-037",
-    name: "Epson WorkForce DS-530",
-    category: "Scanner",
-    serial: "EP-49921-KE",
-    status: "Assigned",
-    assignedTo: "M. Njeru",
-    department: "Constitutional",
-  },
-  {
-    tag: "KE-ICT-U-036",
-    name: "APC Smart-UPS 1500VA",
-    category: "UPS",
-    serial: "APC-1001-KE",
-    status: "In Store",
-    assignedTo: "—",
-    department: "—",
-  },
-  {
-    tag: "KE-ICT-L-035",
-    name: "HP EliteBook 840 G9",
-    category: "Laptop",
-    serial: "HP-84091-KE",
-    status: "Assigned",
-    assignedTo: "P. Odhiambo",
-    department: "HR",
-  },
-  {
-    tag: "KE-ICT-M-034",
-    name: 'Samsung 27" Monitor',
-    category: "Monitor",
-    serial: "SM-27041-KE",
-    status: "Assigned",
-    assignedTo: "S. Kariuki",
-    department: "Admin",
-  },
-];
+type DashboardAsset = AssetRow & { assignedTo?: string };
 
 const statusStyles: Record<string, string> = {
   Assigned: "bg-green-100 text-green-700",
@@ -89,7 +17,7 @@ const statusStyles: Record<string, string> = {
 
 const PAGE_SIZE = 5;
 
-function toAssetDetails(asset: (typeof assets)[number]) {
+function toAssetDetails(asset: DashboardAsset) {
   return {
     tag: asset.tag,
     name: asset.name,
@@ -103,12 +31,18 @@ function toAssetDetails(asset: (typeof assets)[number]) {
   };
 }
 
-const AssetRegisterTable = ({ search = "" }: { search?: string }) => {
+const AssetRegisterTable = ({
+  search = "",
+  assets,
+}: {
+  search?: string;
+  assets: DashboardAsset[];
+}) => {
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedAsset, setSelectedAsset] = useState<
-    (typeof assets)[number] | null
-  >(null);
+  const [selectedAsset, setSelectedAsset] = useState<DashboardAsset | null>(
+    null,
+  );
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -217,7 +151,9 @@ const AssetRegisterTable = ({ search = "" }: { search?: string }) => {
                     {a.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-700">{a.assignedTo}</td>
+                <td className="px-4 py-3 text-gray-700">
+                  {a.assignedTo || "—"}
+                </td>
                 <td className="px-4 py-3 text-gray-500">{a.department}</td>
                 <td className="px-4 py-3">
                   <button

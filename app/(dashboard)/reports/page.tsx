@@ -3,8 +3,9 @@
 import ReportCard from "@/components/reports/ReportCard";
 import { exportToCSV } from "@/app/utils/csvUtils";
 import { exportSimpleTableToPDF } from "@/app/utils/pdfUtils";
-import { assets as assetRecords } from "@/components/assets/AssetTable";
 import { useAssignments } from "@/lib/assignments";
+import { useAssets } from "@/lib/assets";
+import { useTickets } from "@/lib/tickets";
 import { useDashboardSearch } from "@/lib/dashboardSearch";
 import { useMemo, useState } from "react";
 
@@ -78,6 +79,8 @@ const reports = [
 const ReportsPage = () => {
   const [exporting, setExporting] = useState<string | null>(null);
   const { items: assignments } = useAssignments();
+  const { assets: assetRecords } = useAssets();
+  const { stats: ticketStats } = useTickets();
   const query = useDashboardSearch().trim().toLowerCase();
 
   const filteredReports = useMemo(() => {
@@ -133,34 +136,40 @@ const ReportsPage = () => {
       },
     ];
 
+    const depreciationByCategory = Object.entries(
+      assetRecords.reduce<Record<string, number>>((acc, item) => {
+        acc[item.category] = (acc[item.category] || 0) + 1;
+        return acc;
+      }, {}),
+    ).map(([category, count]) => ({ Category: category, Assets: count }));
+
+    const flaggedAssets = assetRows
+      .filter((item) => item.Status === "Flagged")
+      .map((item, index) => ({
+        "Asset Tag": item["Asset Tag"],
+        Status: item.Status,
+        IncidentRef: `INC-${new Date().getFullYear()}-${String(index + 1).padStart(3, "0")}`,
+      }));
+
     const reportMap: Record<string, Array<Record<string, string | number>>> = {
       "Full Asset Register": assetRows,
       "Assignment History": assignmentRows,
       "Assets by Status": statusBreakdown,
       "Ticket Summary Report": [
-        { Type: "Open", Count: 6 },
-        { Type: "In Progress", Count: 8 },
-        { Type: "Pending", Count: 2 },
-        { Type: "Resolved", Count: 12 },
+        { Type: "Open", Count: ticketStats.open },
+        { Type: "In Progress", Count: ticketStats.inProgress },
+        { Type: "Pending", Count: ticketStats.pending },
+        { Type: "Resolved", Count: ticketStats.resolved },
       ],
       "Warranty Expiry Report": assetRows.filter(
-        (item) => item.Warranty === "Expired",
+        (item) =>
+          item.Warranty !== "Unknown" && Date.parse(item.Warranty) < Date.now(),
       ),
       "Unassigned Assets": assetRows.filter(
         (item) => item.Status === "In Store",
       ),
-      "Depreciation Summary": [
-        { Category: "Laptop", ValueKES: 12000000 },
-        { Category: "Desktop", ValueKES: 6500000 },
-        { Category: "Printer", ValueKES: 3100000 },
-      ],
-      "Lost/Stolen Assets": [
-        {
-          "Asset Tag": "KE-ICT-M-034",
-          Status: "Flagged",
-          IncidentRef: "INC-2026-041",
-        },
-      ],
+      "Depreciation Summary": depreciationByCategory,
+      "Lost/Stolen Assets": flaggedAssets,
     };
 
     const rows = reportMap[title] || [];

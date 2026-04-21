@@ -5,76 +5,12 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import RaiseTicketModal from "../modals/RaiseTicketModal";
+import type { ApiTicket } from "@/lib/apiClient";
 
 type Priority = "Critical" | "High" | "Medium" | "Low";
 type Status = "Open" | "In Progress" | "Pending" | "Resolved";
 
-type Ticket = {
-  id: string;
-  issue: string;
-  priority: Priority;
-  department: string;
-  assignedTo: string;
-  status: Status;
-  created: string;
-};
-
-export const tickets: Ticket[] = [
-  {
-    id: "TKT-2025-0189",
-    issue: "Laptop screen flickering",
-    priority: "High",
-    department: "Legal",
-    assignedTo: "T. Kamau",
-    status: "Open",
-    created: "2h ago",
-  },
-  {
-    id: "TKT-2025-0188",
-    issue: "Cannot print from Finance PC",
-    priority: "Medium",
-    department: "Finance",
-    assignedTo: "P. Odhiambo",
-    status: "In Progress",
-    created: "5h ago",
-  },
-  {
-    id: "TKT-2025-0187",
-    issue: "Network switch port failure",
-    priority: "Critical",
-    department: "ICT",
-    assignedTo: "T. Kamau",
-    status: "In Progress",
-    created: "1d ago",
-  },
-  {
-    id: "TKT-2025-0186",
-    issue: "New laptop setup request",
-    priority: "Low",
-    department: "HR",
-    assignedTo: "—",
-    status: "Pending",
-    created: "1d ago",
-  },
-  {
-    id: "TKT-2025-0185",
-    issue: "UPS battery replacement",
-    priority: "Medium",
-    department: "ICT",
-    assignedTo: "B. Otieno",
-    status: "Resolved",
-    created: "3d ago",
-  },
-  {
-    id: "TKT-2025-0184",
-    issue: "Email access issue",
-    priority: "High",
-    department: "Constitutional",
-    assignedTo: "P. Odhiambo",
-    status: "Open",
-    created: "3d ago",
-  },
-];
+type Ticket = ApiTicket;
 
 const priorityStyles: Record<Priority, string> = {
   Critical: "bg-red-50 text-red-600 border border-red-200",
@@ -90,7 +26,13 @@ const statusStyles: Record<Status, string> = {
   Resolved: "bg-green-50 text-green-600 border border-green-200",
 };
 
-const OpenTicketsTable = ({ search = "" }: { search?: string }) => {
+const OpenTicketsTable = ({
+  search = "",
+  tickets,
+}: {
+  search?: string;
+  tickets: Ticket[];
+}) => {
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const filteredTickets = useMemo(() => {
     const query = search.trim().toLowerCase();

@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useCurrentUser } from "@/lib/session";
+import {
+  clearAuthToken,
+  clearCurrentUser,
+  readAuthToken,
+  saveCurrentUser,
+  useCurrentUser,
+} from "@/lib/session";
+import { getAuthMe } from "@/lib/apiClient";
 import {
   canAccessRoute,
   getFirstAllowedRoute,
@@ -27,24 +34,61 @@ export default function DashboardAccessGate({ children }: Props) {
   const user = useCurrentUser();
   const router = useRouter();
   const pathname = usePathname();
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
     if (user === undefined) return;
 
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
+    let cancelled = false;
 
-    if (!DASHBOARD_ROUTES.has(pathname)) return;
+    const validateSession = async () => {
+      const token = readAuthToken();
+      if (!user || !token) {
+        if (!cancelled) {
+          setSessionChecked(true);
+          router.replace("/login");
+        }
+        return;
+      }
 
-    const role: AppRole = normalizeRole(user.role);
-    if (!canAccessRoute(role, pathname)) {
-      router.replace(getFirstAllowedRoute(role));
-    }
+      try {
+        const meResponse = await getAuthMe();
+        if (cancelled) return;
+
+        const persistent =
+          typeof window !== "undefined" &&
+          Boolean(window.localStorage.getItem("ictams.currentUser"));
+
+        saveCurrentUser(meResponse.user, { persistent });
+
+        if (DASHBOARD_ROUTES.has(pathname)) {
+          const role: AppRole = normalizeRole(meResponse.user.role);
+          if (!canAccessRoute(role, pathname)) {
+            router.replace(getFirstAllowedRoute(role));
+            return;
+          }
+        }
+
+        setSessionChecked(true);
+      } catch {
+        if (!cancelled) {
+          clearAuthToken();
+          clearCurrentUser();
+          setSessionChecked(true);
+          router.replace("/login");
+        }
+      }
+    };
+
+    validateSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [pathname, router, user]);
 
-  if (user === undefined || !user) return null;
+  if (user === undefined || !user || !readAuthToken() || !sessionChecked)
+    return null;
 
   const role = normalizeRole(user.role);
   if (DASHBOARD_ROUTES.has(pathname) && !canAccessRoute(role, pathname)) {

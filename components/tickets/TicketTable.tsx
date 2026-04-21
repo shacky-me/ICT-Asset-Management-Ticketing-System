@@ -12,29 +12,6 @@ type Ticket = {
   created: string;
 };
 
-const tickets: Ticket[] = [
-  {
-    id: "TKT-2025-0189",
-    issue: "Laptop Screen Flickering",
-    priority: "High",
-    department: "Legal",
-    assignedTo: "T. Kamau",
-    assetTag: "KE-ICT-L-041",
-    status: "Open",
-    created: "2h ago",
-  },
-  {
-    id: "TKT-2025-0188",
-    issue: "Cannot print from Finance PC",
-    priority: "Medium",
-    department: "Finance",
-    assignedTo: "P. Odhiambo",
-    assetTag: "KE-ICT-P-040",
-    status: "In Progress",
-    created: "5h ago",
-  },
-];
-
 const priorityStyles: Record<Priority, string> = {
   Critical: "bg-red-50 text-red-600 border border-red-200",
   High: "bg-orange-50 text-orange-600 border border-orange-200",
@@ -50,11 +27,12 @@ const statusStyles: Record<TicketStatus, string> = {
 };
 
 interface Props {
+  tickets: Ticket[];
   activeTab: string;
   search?: string;
 }
 
-const TicketTable = ({ activeTab, search = "" }: Props) => {
+const TicketTable = ({ tickets, activeTab, search = "" }: Props) => {
   const tabFiltered =
     activeTab === "All"
       ? tickets

@@ -14,6 +14,8 @@ export type CurrentUser = {
 
 const LOCAL_STORAGE_KEY = "ictams.currentUser";
 const SESSION_STORAGE_KEY = "ictams.currentUser.session";
+const LOCAL_AUTH_TOKEN_KEY = "ictams.authToken";
+const SESSION_AUTH_TOKEN_KEY = "ictams.authToken.session";
 const USER_EVENT = "ictams:user-changed";
 
 function canUseBrowserStorage() {
@@ -111,7 +113,43 @@ export function clearCurrentUser() {
 
   window.localStorage.removeItem(LOCAL_STORAGE_KEY);
   window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  window.localStorage.removeItem(LOCAL_AUTH_TOKEN_KEY);
+  window.sessionStorage.removeItem(SESSION_AUTH_TOKEN_KEY);
   dispatchUserChanged();
+}
+
+export function readAuthToken(): string | null {
+  if (!canUseBrowserStorage()) return null;
+
+  return (
+    window.sessionStorage.getItem(SESSION_AUTH_TOKEN_KEY) ||
+    window.localStorage.getItem(LOCAL_AUTH_TOKEN_KEY)
+  );
+}
+
+export function saveAuthToken(
+  token: string,
+  options?: { persistent?: boolean },
+) {
+  if (!canUseBrowserStorage()) return;
+
+  const targetStorage = options?.persistent
+    ? window.localStorage
+    : window.sessionStorage;
+  const targetKey = options?.persistent
+    ? LOCAL_AUTH_TOKEN_KEY
+    : SESSION_AUTH_TOKEN_KEY;
+
+  window.localStorage.removeItem(LOCAL_AUTH_TOKEN_KEY);
+  window.sessionStorage.removeItem(SESSION_AUTH_TOKEN_KEY);
+  targetStorage.setItem(targetKey, token);
+}
+
+export function clearAuthToken() {
+  if (!canUseBrowserStorage()) return;
+
+  window.localStorage.removeItem(LOCAL_AUTH_TOKEN_KEY);
+  window.sessionStorage.removeItem(SESSION_AUTH_TOKEN_KEY);
 }
 
 export function useCurrentUser() {

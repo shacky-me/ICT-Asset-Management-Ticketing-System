@@ -10,9 +10,9 @@ import OpenTicketsTable from "@/components/dashboard/OpenTicketsTable";
 import { Monitor, Tag, Store, Wrench, Ticket } from "lucide-react";
 import { useCurrentUser } from "@/lib/session";
 import { normalizeRole } from "@/lib/rbac";
-import { assets as dashboardAssets } from "@/components/dashboard/AssetRegisterTable";
-import { tickets as dashboardTickets } from "@/components/dashboard/OpenTicketsTable";
 import { useDashboardSearch } from "@/lib/dashboardSearch";
+import { useAssets } from "@/lib/assets";
+import { useTickets } from "@/lib/tickets";
 
 const OverviewPage = () => {
   const currentUser = useCurrentUser();
@@ -22,20 +22,14 @@ const OverviewPage = () => {
   const showDepartmentReports =
     role === "supervisor" || role === "ict_officer" || role === "ict_admin";
   const search = useDashboardSearch();
+  const { assets: dashboardAssets, stats: assetStats } = useAssets();
+  const { tickets: dashboardTickets, openOrInProgress } = useTickets();
 
-  const totalAssets = dashboardAssets.length;
-  const assignedAssets = dashboardAssets.filter(
-    (asset) => asset.status === "Assigned",
-  ).length;
-  const inStoreAssets = dashboardAssets.filter(
-    (asset) => asset.status === "In Store",
-  ).length;
-  const maintenanceAssets = dashboardAssets.filter(
-    (asset) => asset.status === "Maintenance",
-  ).length;
-  const openTickets = dashboardTickets.filter(
-    (ticket) => ticket.status === "Open" || ticket.status === "In Progress",
-  ).length;
+  const totalAssets = assetStats.total;
+  const assignedAssets = assetStats.assigned;
+  const inStoreAssets = assetStats.inStore;
+  const maintenanceAssets = assetStats.maintenance;
+  const openTickets = openOrInProgress;
   const resolvedTickets = dashboardTickets.filter(
     (ticket) => ticket.status === "Resolved",
   ).length;
@@ -110,8 +104,10 @@ const OverviewPage = () => {
       </div>
 
       {/* Tables */}
-      {showAssetOps && <AssetRegisterTable search={search} />}
-      <OpenTicketsTable search={search} />
+      {showAssetOps && (
+        <AssetRegisterTable search={search} assets={dashboardAssets} />
+      )}
+      <OpenTicketsTable search={search} tickets={dashboardTickets} />
     </div>
   );
 };

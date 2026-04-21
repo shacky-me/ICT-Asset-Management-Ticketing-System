@@ -6,11 +6,13 @@ import TicketTable from "@/components/tickets/TicketTable";
 import { Button } from "@/components/ui/button";
 import RaiseTicketModal from "@/components/modals/RaiseTicketModal";
 import { useDashboardSearch } from "@/lib/dashboardSearch";
+import { useTickets } from "@/lib/tickets";
 
 const TicketsPage = () => {
   const [activeTab, setActiveTab] = useState("All");
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const search = useDashboardSearch();
+  const { tickets, stats } = useTickets();
 
   return (
     <>
@@ -37,11 +39,20 @@ const TicketsPage = () => {
           />
         </div>
 
-        <TicketStatsBar />
+        <TicketStatsBar
+          open={stats.open}
+          inProgress={stats.inProgress}
+          pending={stats.pending}
+          resolved={stats.resolved}
+        />
 
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <TicketFilterTabs active={activeTab} onTabChange={setActiveTab} />
-          <TicketTable activeTab={activeTab} search={search} />
+          <TicketTable
+            activeTab={activeTab}
+            search={search}
+            tickets={tickets}
+          />
         </div>
       </div>
     </>

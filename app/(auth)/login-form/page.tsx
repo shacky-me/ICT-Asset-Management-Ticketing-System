@@ -17,25 +17,13 @@ import Link from "next/link";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/apiClient";
-import { saveCurrentUser } from "@/lib/session";
+import { saveAuthToken, saveCurrentUser } from "@/lib/session";
 import { addNotification } from "@/lib/notifications";
-import {
-  authenticateProvisionedAccount,
-  setPendingPasswordResetEmail,
-} from "@/lib/authAccounts";
 
 // Validators
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function isValidUsername(value: string): boolean {
-  return /^[a-zA-Z0-9_]{3,}$/.test(value);
-}
-
-function isValidIdentifier(value: string): boolean {
-  return isValidEmail(value) || isValidUsername(value);
 }
 
 function getPasswordStrength(value: string): number {
@@ -84,7 +72,7 @@ const LoginFormPage = () => {
 
   // Derived validation
 
-  const emailValid = isValidIdentifier(email.trim());
+  const emailValid = isValidEmail(email.trim());
   const emailError =
     emailTouched && email.trim() && !emailValid
       ? "Enter a valid email (you@example.com)"
@@ -141,36 +129,6 @@ const LoginFormPage = () => {
       setIsLoading(true);
       setProgress(0);
 
-      const provisionedResult = authenticateProvisionedAccount(
-        email.trim(),
-        password,
-      );
-
-      if (provisionedResult.status === "invalid_password") {
-        setAuthError("Invalid credentials. Check your email and password.");
-        setIsLoading(false);
-        return;
-      }
-
-      if (provisionedResult.status === "requires_password_reset") {
-        setPendingPasswordResetEmail(provisionedResult.email, keepLoggedIn);
-        router.push("/reset-password?firstLogin=1");
-        return;
-      }
-
-      if (provisionedResult.status === "authenticated") {
-        const currentUser = saveCurrentUser(provisionedResult.user, {
-          persistent: keepLoggedIn,
-        });
-        addNotification({
-          title: "Signed in successfully",
-          message: `Welcome back, ${currentUser.name}.`,
-          type: "auth",
-        });
-        router.push("/overview");
-        return;
-      }
-
       await crawlTo(0, 40, 0.15, 30);
       await crawlTo(40, 75, 0.04, 40);
       await new Promise((res) => setTimeout(res, 500));
@@ -184,45 +142,17 @@ const LoginFormPage = () => {
           rememberMe: keepLoggedIn,
         });
 
-        type AccessRequestPersonalDraft = {
-          fullName?: string;
-          staffNumber?: string;
-          department?: string;
-        };
-
-        type AccessRequestRoleDraft = { role?: string };
-
-        let personalDraft: AccessRequestPersonalDraft | null = null;
-        let accessDraft: AccessRequestRoleDraft | null = null;
-
-        try {
-          const personalRaw = localStorage.getItem("request_access_step1");
-          const accessRaw = localStorage.getItem("accessDetails");
-          personalDraft = personalRaw
-            ? (JSON.parse(personalRaw) as AccessRequestPersonalDraft)
-            : null;
-          accessDraft = accessRaw
-            ? (JSON.parse(accessRaw) as AccessRequestRoleDraft)
-            : null;
-        } catch {
-          personalDraft = null;
-          accessDraft = null;
-        }
-
         const currentUser = saveCurrentUser(
           {
             ...authResponse.user,
-            name: personalDraft?.fullName || authResponse.user.name,
-            department:
-              personalDraft?.department || authResponse.user.department,
-            role: accessDraft?.role
-              ? accessDraft.role[0].toUpperCase() + accessDraft.role.slice(1)
-              : authResponse.user.role,
-            staffNumber: personalDraft?.staffNumber,
             email: authResponse.user.email,
           },
           { persistent: keepLoggedIn },
         );
+
+        if (authResponse.token) {
+          saveAuthToken(authResponse.token, { persistent: keepLoggedIn });
+        }
 
         addNotification({
           title: "Signed in successfully",
@@ -231,8 +161,20 @@ const LoginFormPage = () => {
         });
 
         router.push("/overview");
-      } catch {
-        setAuthError("Unable to sign in right now. Please try again.");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message.toLowerCase() : "";
+        if (message.includes("invalid email or password")) {
+          setAuthError("Invalid credentials. Check your email and password.");
+        } else if (message.includes("not yet authorized")) {
+          setAuthError(
+            "Account not yet approved. Please contact administrator.",
+          );
+        } else if (message.includes("api base url is not configured")) {
+          setAuthError("Authentication service is not configured.");
+        } else {
+          setAuthError("Unable to sign in right now. Please try again.");
+        }
         setIsLoading(false);
       }
     },
