@@ -1,6 +1,1 @@
-{
-  "root": "client",
-  "buildCommand": "pnpm install && pnpm run build",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "outputDirectory": "client/.next"
-}
+{}
