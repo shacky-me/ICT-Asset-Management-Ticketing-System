@@ -12,12 +12,16 @@ import { canManageAssignments, normalizeRole } from "@/lib/rbac";
 import { exportToCSV } from "@/app/utils/csvUtils";
 import { useAssignments } from "@/lib/assignments";
 import { useDashboardSearch } from "@/lib/dashboardSearch";
+import type { AssignmentRecord } from "@/lib/assignments";
 
 const AssignmentsPage = () => {
   const [activeTab, setActiveTab] = useState("All");
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("All Departments");
   const [showModal, setShowModal] = useState(false);
+  const [editingAssignment, setEditingAssignment] =
+    useState<AssignmentRecord | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const currentUser = useCurrentUser();
   const role = normalizeRole(currentUser?.role);
   const allowAssignmentManagement = canManageAssignments(role);
@@ -76,6 +80,20 @@ const AssignmentsPage = () => {
     exportToCSV(exportRows, "assignments.csv");
   };
 
+  const handleOpenNew = () => {
+    setEditingAssignment(null);
+    setShowModal(true);
+  };
+
+  const handleEditAssignment = (assignment: AssignmentRecord) => {
+    setEditingAssignment(assignment);
+    setShowModal(true);
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -96,7 +114,7 @@ const AssignmentsPage = () => {
           </Button>
           {allowAssignmentManagement && (
             <Button
-              onClick={() => setShowModal(true)}
+              onClick={handleOpenNew}
               className="bg-[#235FE7] hover:bg-[#1a4fd6] text-sm cursor-pointer"
             >
               + New Assignment
@@ -132,10 +150,20 @@ const AssignmentsPage = () => {
           activeTab={activeTab}
           search={search}
           department={department}
+          onRefresh={handleRefresh}
+          onEditOpen={handleEditAssignment}
         />
       </div>
 
-      <AssignmentModal isOpen={showModal} onClose={() => setShowModal(false)} />
+      <AssignmentModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditingAssignment(null);
+        }}
+        editingAssignment={editingAssignment}
+        onRefresh={handleRefresh}
+      />
     </div>
   );
 };

@@ -83,12 +83,24 @@ export default function DashboardAccessGate({ children }: Props) {
         }
 
         setSessionChecked(true);
-      } catch {
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message.toLowerCase() : "";
+        const shouldLogout =
+          message.includes("unauthorized") ||
+          message.includes("invalid token") ||
+          message.includes("no token provided") ||
+          message.includes("status 401") ||
+          message.includes("status 403");
+
         if (!cancelled) {
-          clearAuthToken();
-          clearCurrentUser();
           setSessionChecked(true);
-          router.replace("/login");
+
+          if (shouldLogout) {
+            clearAuthToken();
+            clearCurrentUser();
+            router.replace("/login");
+          }
         }
       }
     };

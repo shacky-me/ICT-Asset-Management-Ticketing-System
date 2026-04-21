@@ -3,6 +3,7 @@ import {
   createAccessRequest,
   approveAccessRequest,
   getPendingAccessRequests,
+  rejectAccessRequest,
 } from "../controllers/access.controller.js";
 import {
   authenticateToken,
@@ -23,6 +24,12 @@ router.post(
   authenticateToken,
   requireAdmin,
   approveAccessRequest,
+);
+router.post(
+  "/:requestId/reject",
+  authenticateToken,
+  requireAdmin,
+  rejectAccessRequest,
 );
 
 export default router;

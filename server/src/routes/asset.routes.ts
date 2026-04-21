@@ -4,6 +4,7 @@ import {
   getAssets,
   getStats,
   getAssetById,
+  removeAsset,
 } from "../controllers/asset.controller.js";
 import { authenticateToken } from "../middlewares/auth.middleware.js";
 
@@ -16,5 +17,6 @@ router.get("/", authenticateToken, getAssets);
 router.post("/", authenticateToken, createAsset);
 
 router.get("/:id", authenticateToken, getAssetById);
+router.delete("/:id", authenticateToken, removeAsset);
 
 export default router;

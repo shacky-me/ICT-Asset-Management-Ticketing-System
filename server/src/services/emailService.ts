@@ -77,6 +77,18 @@ interface AdminNotification {
   reason?: string;
 }
 
+interface PasswordResetEmail {
+  to: string;
+  name: string;
+  resetUrl: string;
+}
+
+interface AccessRejectedEmail {
+  to: string;
+  name: string;
+  reason?: string;
+}
+
 export const sendAccessEmail = async ({
   to,
   name,
@@ -167,4 +179,54 @@ export const notifyAdmin = async ({
   });
 
   console.log("Admin notification sent:", info.response);
+};
+
+export const sendPasswordResetEmail = async ({
+  to,
+  name,
+  resetUrl,
+}: PasswordResetEmail) => {
+  try {
+    const transporter = createTransporter();
+    const fromAddress = resolveSmtpUser();
+
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to,
+      subject: "Reset your IT Asset System password",
+      html: `<h2>Hello ${name}</h2>
+             <p>We received a request to reset your password.</p>
+             <p><a href="${resetUrl}">Reset Password</a></p>
+             <p>This link expires in 30 minutes. If you did not request this, you can ignore this email.</p>`,
+    });
+
+    console.log("Password reset email sent:", info.response);
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+  }
+};
+
+export const sendAccessRejectedEmail = async ({
+  to,
+  name,
+  reason,
+}: AccessRejectedEmail) => {
+  try {
+    const transporter = createTransporter();
+    const fromAddress = resolveSmtpUser();
+
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to,
+      subject: "IT Asset System Access Request Update",
+      html: `<h2>Hello ${name}</h2>
+             <p>Your access request was not approved at this time.</p>
+             <p><b>Reason:</b> ${reason || "No reason was provided."}</p>
+             <p>If you need assistance, please contact your administrator.</p>`,
+    });
+
+    console.log("Access rejection email sent:", info.response);
+  } catch (error) {
+    console.error("Error sending access rejection email:", error);
+  }
 };

@@ -3,7 +3,10 @@
 import { FormEvent, Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { changeTemporaryPassword } from "@/lib/apiClient";
+import {
+  changeTemporaryPassword,
+  resetPasswordWithToken,
+} from "@/lib/apiClient";
 import { readAuthToken, readCurrentUser, saveCurrentUser } from "@/lib/session";
 import { addNotification } from "@/lib/notifications";
 
@@ -19,6 +22,8 @@ function ResetPasswordContent() {
   const [errorText, setErrorText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isFirstLoginFlow = params.get("firstLogin") === "1";
+  const token = params.get("token") || "";
+  const isTokenResetFlow = Boolean(token) && !isFirstLoginFlow;
 
   const error = useMemo(() => {
     if (!currentPassword && isFirstLoginFlow) return "";
@@ -76,7 +81,28 @@ function ResetPasswordContent() {
       }
     }
 
-    setErrorText("Password updated. You can now sign in.");
+    if (isTokenResetFlow) {
+      try {
+        setIsSubmitting(true);
+        setErrorText("");
+        await resetPasswordWithToken({ token, newPassword: password });
+        addNotification({
+          title: "Password updated",
+          message: "You can now sign in with your new password.",
+          type: "auth",
+        });
+        router.push("/login");
+        return;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to update password.";
+        setErrorText(message);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    setErrorText("Invalid reset request.");
   };
 
   return (
@@ -99,10 +125,21 @@ function ResetPasswordContent() {
           </div>
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>
+            {!isFirstLoginFlow && !isTokenResetFlow && (
+              <p className="text-xs text-red-600">
+                Invalid or missing reset token. Please request a new reset link.
+              </p>
+            )}
             {isFirstLoginFlow && pendingEmail && (
               <p className="text-xs text-slate-500">
                 Setting a new password for:{" "}
                 <span className="font-semibold">{pendingEmail}</span>
+              </p>
+            )}
+
+            {isTokenResetFlow && (
+              <p className="text-xs text-slate-500">
+                Set your new password to complete the reset process.
               </p>
             )}
 
@@ -158,7 +195,7 @@ function ResetPasswordContent() {
 
             <button
               type="submit"
-              disabled={!canSubmit}
+              disabled={!canSubmit || (!isFirstLoginFlow && !isTokenResetFlow)}
               className="w-full rounded-lg bg-blue-600 text-white py-2.5 text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? "Updating..." : "Update Password"}

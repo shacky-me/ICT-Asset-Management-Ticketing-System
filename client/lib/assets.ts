@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getAssets, getAssetStats, type ApiAsset } from "@/lib/apiClient";
 
+const ASSETS_CHANGED_EVENT = "ictams:assets-changed";
+
 export type AssetRow = {
   id: number;
   tag: string;
@@ -14,6 +16,7 @@ export type AssetRow = {
   status: "Assigned" | "In Store" | "Maintenance" | "Flagged";
   department: string;
   warranty: string;
+  createdAt: string;
 };
 
 export type AssetStats = {
@@ -43,7 +46,13 @@ function mapAsset(input: ApiAsset): AssetRow {
     status: mapAssetStatus(input.status),
     department: input.department?.name || "Unassigned",
     warranty: "Unknown",
+    createdAt: input.createdAt,
   };
+}
+
+export function publishAssetsChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(ASSETS_CHANGED_EVENT));
 }
 
 export function useAssets() {
@@ -78,8 +87,15 @@ export function useAssets() {
 
     load();
 
+    const handleAssetsChanged = () => {
+      load();
+    };
+
+    window.addEventListener(ASSETS_CHANGED_EVENT, handleAssetsChanged);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(ASSETS_CHANGED_EVENT, handleAssetsChanged);
     };
   }, []);
 

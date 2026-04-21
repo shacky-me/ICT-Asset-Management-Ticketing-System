@@ -5,7 +5,9 @@ import RegisterAssetModal from "../modals/RegisterAssetModal";
 import { useMemo, useState } from "react";
 import { exportToCSV } from "@/app/utils/csvUtils";
 import AssetDetailsModal from "@/components/assets/AssetDetailsModal";
-import type { AssetRow } from "@/lib/assets";
+import { deleteAsset } from "@/lib/apiClient";
+import { publishAssetsChanged, type AssetRow } from "@/lib/assets";
+import { addNotification } from "@/lib/notifications";
 
 type DashboardAsset = AssetRow & { assignedTo?: string };
 
@@ -43,6 +45,7 @@ const AssetRegisterTable = ({
   const [selectedAsset, setSelectedAsset] = useState<DashboardAsset | null>(
     null,
   );
+  const [deletingAssetId, setDeletingAssetId] = useState<number | null>(null);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -55,7 +58,7 @@ const AssetRegisterTable = ({
         asset.category.toLowerCase().includes(query) ||
         asset.department.toLowerCase().includes(query),
     );
-  }, [search]);
+  }, [assets, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const effectivePage = Math.min(currentPage, totalPages);
@@ -80,6 +83,35 @@ const AssetRegisterTable = ({
     }));
 
     exportToCSV(formatted, "asset-register.csv");
+  };
+
+  const handleRemoveAsset = async (asset: DashboardAsset) => {
+    const confirmed = window.confirm(
+      `Remove ${asset.tag} from the register? This action cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingAssetId(asset.id);
+      await deleteAsset(asset.id);
+      addNotification({
+        title: "Asset removed",
+        message: `${asset.tag} was removed from the register.`,
+        type: "asset",
+      });
+      publishAssetsChanged();
+    } catch (error) {
+      addNotification({
+        title: "Unable to remove asset",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Please try again in a moment.",
+        type: "auth",
+      });
+    } finally {
+      setDeletingAssetId(null);
+    }
   };
   return (
     <div>
@@ -156,12 +188,21 @@ const AssetRegisterTable = ({
                 </td>
                 <td className="px-4 py-3 text-gray-500">{a.department}</td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => setSelectedAsset(a)}
-                    className="text-[#235FE7] font-medium hover:underline"
-                  >
-                    View
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setSelectedAsset(a)}
+                      className="text-[#235FE7] font-medium hover:underline"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => handleRemoveAsset(a)}
+                      disabled={deletingAssetId === a.id}
+                      className="text-red-600 font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {deletingAssetId === a.id ? "Removing..." : "Remove"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

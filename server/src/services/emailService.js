@@ -108,4 +108,42 @@ export const notifyAdmin = async ({ fullName, email, department, role, reason, }
     });
     console.log("Admin notification sent:", info.response);
 };
+export const sendPasswordResetEmail = async ({ to, name, resetUrl, }) => {
+    try {
+        const transporter = createTransporter();
+        const fromAddress = resolveSmtpUser();
+        const info = await transporter.sendMail({
+            from: fromAddress,
+            to,
+            subject: "Reset your IT Asset System password",
+            html: `<h2>Hello ${name}</h2>
+             <p>We received a request to reset your password.</p>
+             <p><a href="${resetUrl}">Reset Password</a></p>
+             <p>This link expires in 30 minutes. If you did not request this, you can ignore this email.</p>`,
+        });
+        console.log("Password reset email sent:", info.response);
+    }
+    catch (error) {
+        console.error("Error sending password reset email:", error);
+    }
+};
+export const sendAccessRejectedEmail = async ({ to, name, reason, }) => {
+    try {
+        const transporter = createTransporter();
+        const fromAddress = resolveSmtpUser();
+        const info = await transporter.sendMail({
+            from: fromAddress,
+            to,
+            subject: "IT Asset System Access Request Update",
+            html: `<h2>Hello ${name}</h2>
+             <p>Your access request was not approved at this time.</p>
+             <p><b>Reason:</b> ${reason || "No reason was provided."}</p>
+             <p>If you need assistance, please contact your administrator.</p>`,
+        });
+        console.log("Access rejection email sent:", info.response);
+    }
+    catch (error) {
+        console.error("Error sending access rejection email:", error);
+    }
+};
 //# sourceMappingURL=emailService.js.map

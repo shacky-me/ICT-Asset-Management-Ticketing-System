@@ -43,3 +43,41 @@ export const getStats = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Error fetching statistics" });
   }
 };
+
+export const updateAssignment = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    const { id } = req.params;
+    const assignment = await assignmentService.updateAssignment(
+      Number(id),
+      req.body,
+    );
+
+    return res.status(200).json({
+      message: "Assignment updated successfully",
+      assignment,
+    });
+  } catch (error: any) {
+    if (error.message === "Assignment not found") {
+      return res.status(404).json({ message: error.message });
+    }
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+export const deleteAssignment = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    const { id } = req.params;
+    await assignmentService.deleteAssignment(Number(id), req.user.id);
+
+    return res.status(200).json({ message: "Assignment deleted successfully" });
+  } catch (error: any) {
+    if (error.message === "Assignment not found") {
+      return res.status(404).json({ message: error.message });
+    }
+    return res.status(400).json({ message: error.message });
+  }
+};

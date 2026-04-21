@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import AssetDetailsModal from "@/components/assets/AssetDetailsModal";
-import type { AssetRow } from "@/lib/assets";
+import { deleteAsset } from "@/lib/apiClient";
+import { publishAssetsChanged, type AssetRow } from "@/lib/assets";
+import { addNotification } from "@/lib/notifications";
 
 // Types
 type AssetStatus = "Assigned" | "In Store" | "Maintenance" | "Flagged";
@@ -45,6 +47,7 @@ interface Props {
   search?: string;
   categoryFilter?: string;
   departmentFilter?: string;
+  canRemoveAssets?: boolean;
 }
 
 //  Component
@@ -54,9 +57,11 @@ const AssetTable = ({
   search = "",
   categoryFilter = "All Categories",
   departmentFilter = "All Departments",
+  canRemoveAssets = false,
 }: Props) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [deletingAssetId, setDeletingAssetId] = useState<number | null>(null);
 
   const filtered = useMemo(
     () =>
@@ -84,7 +89,7 @@ const AssetTable = ({
             a.serial.toLowerCase().includes(query)
           );
         }),
-    [activeTab, categoryFilter, departmentFilter, search],
+    [activeTab, assets, categoryFilter, departmentFilter, search],
   );
 
   const totalRecords = filtered.length;
@@ -104,6 +109,35 @@ const AssetTable = ({
   function goTo(page: number) {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
+  }
+
+  async function handleRemoveAsset(asset: Asset) {
+    const confirmed = window.confirm(
+      `Remove ${asset.tag} from the register? This action cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingAssetId(asset.id);
+      await deleteAsset(asset.id);
+      addNotification({
+        title: "Asset removed",
+        message: `${asset.tag} was removed from the register.`,
+        type: "asset",
+      });
+      publishAssetsChanged();
+    } catch (error) {
+      addNotification({
+        title: "Unable to remove asset",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Please try again in a moment.",
+        type: "auth",
+      });
+    } finally {
+      setDeletingAssetId(null);
+    }
   }
 
   return (
@@ -179,12 +213,23 @@ const AssetTable = ({
                   {a.warranty}
                 </td>
                 <td className="px-3 py-4">
-                  <button
-                    onClick={() => setSelectedAsset(a)}
-                    className="text-xs text-[#235FE7] font-semibold hover:underline whitespace-nowrap"
-                  >
-                    View
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setSelectedAsset(a)}
+                      className="text-xs text-[#235FE7] font-semibold hover:underline whitespace-nowrap"
+                    >
+                      View
+                    </button>
+                    {canRemoveAssets && (
+                      <button
+                        onClick={() => handleRemoveAsset(a)}
+                        disabled={deletingAssetId === a.id}
+                        className="text-xs text-red-600 font-semibold hover:underline whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deletingAssetId === a.id ? "Removing..." : "Remove"}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))

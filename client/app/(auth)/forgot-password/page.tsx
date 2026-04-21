@@ -2,20 +2,37 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { requestPasswordReset } from "@/lib/apiClient";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
   const isEmailValid = useMemo(
     () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
     [email],
   );
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isEmailValid) return;
-    setSent(true);
+
+    try {
+      setIsSubmitting(true);
+      setErrorText("");
+      await requestPasswordReset({ email: email.trim() });
+      setSent(true);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to send reset email right now.";
+      setErrorText(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -57,12 +74,14 @@ export default function ForgotPasswordPage() {
               </p>
             )}
 
+            {errorText && <p className="text-xs text-red-600">{errorText}</p>}
+
             <button
               type="submit"
-              disabled={!isEmailValid}
+              disabled={!isEmailValid || isSubmitting}
               className="w-full rounded-lg bg-blue-600 text-white py-2.5 text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
-              Send Reset Link
+              {isSubmitting ? "Sending..." : "Send Reset Link"}
             </button>
           </form>
         )}

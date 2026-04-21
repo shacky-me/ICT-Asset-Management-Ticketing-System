@@ -58,7 +58,7 @@ const LoginFormPage = () => {
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [authError, setAuthError] = useState("");
@@ -100,7 +100,7 @@ const LoginFormPage = () => {
   // Submit
 
   const handleSubmit = useCallback(
-    async (e: React.MouseEvent) => {
+    async (e: React.FormEvent<HTMLFormElement>) => {
       const crawlTo = (
         from: number,
         target: number,
@@ -204,203 +204,207 @@ const LoginFormPage = () => {
             </h1>
           </div>
 
-          <FieldGroup>
-            {/* Email */}
-            <Field>
-              <FieldLabel htmlFor="email">Email Address</FieldLabel>
-              <div className="relative">
-                <Input
-                  className={inputClass(emailTouched, emailValid, email)}
-                  id="email"
-                  type="text"
-                  placeholder="e.g. ongengu.brian@ag.go.ke"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setEmailTouched(true)}
-                  disabled={isLoading}
-                  aria-invalid={!!emailError}
-                  aria-describedby={emailError ? "email-error" : "email-desc"}
-                />
-                {emailTouched && email && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {emailValid ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-400" />
-                    )}
-                  </span>
-                )}
-              </div>
-              {emailError ? (
-                <p id="email-error" className="text-xs text-red-500 mt-1">
-                  {emailError}
-                </p>
-              ) : (
-                <FieldDescription id="email-desc">
-                  Use your email to sign in.
-                </FieldDescription>
-              )}
-            </Field>
-
-            {/* Password */}
-            <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className={`pr-10 ${inputClass(passwordTouched, passwordValid, password)}`}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onBlur={() => setPasswordTouched(true)}
-                  disabled={isLoading}
-                  aria-invalid={!!passwordError}
-                  aria-describedby={
-                    passwordError ? "password-error" : "password-desc"
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  disabled={isLoading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <FieldGroup>
+              {/* Email */}
+              <Field>
+                <FieldLabel htmlFor="email">Email Address</FieldLabel>
+                <div className="relative">
+                  <Input
+                    className={inputClass(emailTouched, emailValid, email)}
+                    id="email"
+                    type="text"
+                    placeholder="e.g. ongengu.brian@ag.go.ke"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onBlur={() => setEmailTouched(true)}
+                    disabled={isLoading}
+                    aria-invalid={!!emailError}
+                    aria-describedby={emailError ? "email-error" : "email-desc"}
+                  />
+                  {emailTouched && email && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {emailValid ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-400" />
+                      )}
+                    </span>
                   )}
-                </button>
-              </div>
-
-              {password.length > 0 && (
-                <div className="flex gap-1 mt-2" aria-hidden="true">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="h-1 flex-1 rounded-full transition-all duration-200"
-                      style={{
-                        background:
-                          i <= passwordStrength
-                            ? STRENGTH_COLORS[passwordStrength]
-                            : "#e5e7eb",
-                      }}
-                    />
-                  ))}
                 </div>
-              )}
-
-              {password.length > 0 && (
-                <p
-                  className="text-xs mt-1"
-                  style={{ color: STRENGTH_COLORS[passwordStrength] }}
-                >
-                  {STRENGTH_LABELS[passwordStrength]}
-                </p>
-              )}
-
-              {passwordError ? (
-                <p id="password-error" className="text-xs text-red-500 mt-1">
-                  {passwordError}
-                </p>
-              ) : (
-                !password && (
-                  <FieldDescription id="password-desc">
-                    Use the password associated with your account.
+                {emailError ? (
+                  <p id="email-error" className="text-xs text-red-500 mt-1">
+                    {emailError}
+                  </p>
+                ) : (
+                  <FieldDescription id="email-desc">
+                    Use your email to sign in.
                   </FieldDescription>
-                )
-              )}
-            </Field>
-          </FieldGroup>
+                )}
+              </Field>
 
-          <div className="space-y-6">
-            {/* Checkbox + forgot password */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="keep-logged-in"
-                  checked={keepLoggedIn}
-                  disabled={isLoading}
-                  onCheckedChange={(checked) =>
-                    setKeepLoggedIn(checked === true)
-                  }
-                />
-                <label
-                  htmlFor="keep-logged-in"
-                  className="text-sm cursor-pointer select-none"
-                >
-                  Keep me logged in
-                </label>
-              </div>
-              <div className="text-blue-700 hover:underline text-sm">
-                <Link href="/forgot-password">forgot password?</Link>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div
-              className={`w-full h-1 rounded-full overflow-hidden bg-gray-100 transition-opacity duration-300 ${
-                isLoading ? "opacity-100" : "opacity-0"
-              }`}
-              aria-hidden="true"
-            >
-              <div
-                className="h-full bg-[#235FE7] rounded-full"
-                style={{
-                  width: `${progress}%`,
-                  transition: "width 30ms linear",
-                }}
-              />
-            </div>
-
-            <Button
-              className="cursor-pointer bg-[#235FE7] w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              disabled={!canSubmit || isLoading}
-              onClick={handleSubmit}
-            >
-              {isLoading ? (
-                <>
-                  <svg
-                    className="animate-spin h-4 w-4 text-white shrink-0"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
+              {/* Password */}
+              <Field>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    className={`pr-10 ${inputClass(passwordTouched, passwordValid, password)}`}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onBlur={() => setPasswordTouched(true)}
+                    disabled={isLoading}
+                    aria-invalid={!!passwordError}
+                    aria-describedby={
+                      passwordError ? "password-error" : "password-desc"
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    disabled={isLoading}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                    />
-                  </svg>
-                  <span>{getLoadingLabel(progress)}</span>
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
 
-            {authError && <p className="text-xs text-red-500">{authError}</p>}
+                {password.length > 0 && (
+                  <div className="flex gap-1 mt-2" aria-hidden="true">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className="h-1 flex-1 rounded-full transition-all duration-200"
+                        style={{
+                          background:
+                            i <= passwordStrength
+                              ? STRENGTH_COLORS[passwordStrength]
+                              : "#e5e7eb",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
 
-            <div className="text-center">
-              <p className="text-[#747376] text-sm">
-                Don&apos;t have an account yet?{" "}
-                <span className="text-blue-700">
-                  <Link href="/request-access">Request access</Link>
-                </span>
-              </p>
+                {password.length > 0 && (
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: STRENGTH_COLORS[passwordStrength] }}
+                  >
+                    {STRENGTH_LABELS[passwordStrength]}
+                  </p>
+                )}
+
+                {passwordError ? (
+                  <p id="password-error" className="text-xs text-red-500 mt-1">
+                    {passwordError}
+                  </p>
+                ) : (
+                  !password && (
+                    <FieldDescription id="password-desc">
+                      Use the password associated with your account.
+                    </FieldDescription>
+                  )
+                )}
+              </Field>
+            </FieldGroup>
+
+            <div className="space-y-6">
+              {/* Checkbox + forgot password */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="keep-logged-in"
+                    checked={keepLoggedIn}
+                    disabled={isLoading}
+                    onCheckedChange={(checked) =>
+                      setKeepLoggedIn(checked === true)
+                    }
+                  />
+                  <label
+                    htmlFor="keep-logged-in"
+                    className="text-sm cursor-pointer select-none"
+                  >
+                    Keep me logged in
+                  </label>
+                </div>
+                <div className="text-blue-700 hover:underline text-sm">
+                  <Link href="/forgot-password">forgot password?</Link>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div
+                className={`w-full h-1 rounded-full overflow-hidden bg-gray-100 transition-opacity duration-300 ${
+                  isLoading ? "opacity-100" : "opacity-0"
+                }`}
+                aria-hidden="true"
+              >
+                <div
+                  className="h-full bg-[#235FE7] rounded-full"
+                  style={{
+                    width: `${progress}%`,
+                    transition: "width 30ms linear",
+                  }}
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="cursor-pointer bg-[#235FE7] w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={!canSubmit || isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-4 w-4 text-white shrink-0"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
+                    </svg>
+                    <span>{getLoadingLabel(progress)}</span>
+                  </>
+                ) : (
+                  "Sign In"
+                )}
+              </Button>
+
+              {authError && <p className="text-xs text-red-500">{authError}</p>}
+
+              <div className="text-center">
+                <p className="text-[#747376] text-sm">
+                  Don&apos;t have an account yet?{" "}
+                  <span className="text-blue-700">
+                    <Link href="/request-access">Request access</Link>
+                  </span>
+                </p>
+              </div>
             </div>
-          </div>
+          </form>
         </FieldSet>
       </main>
     </div>

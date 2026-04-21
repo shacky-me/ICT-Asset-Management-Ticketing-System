@@ -123,4 +123,7 @@ export declare const getAssetById: (id: number) => Promise<{
     color: string | null;
     status: import("@prisma/client").$Enums.AssetStatus;
 }>;
+export declare const removeAsset: (id: number, userId: number) => Promise<{
+    id: number;
+}>;
 //# sourceMappingURL=asset.service.d.ts.map

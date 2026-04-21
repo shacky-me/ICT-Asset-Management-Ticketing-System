@@ -4,6 +4,7 @@ import { prisma } from "../prisma.js";
 import { generateTempPassword } from "../utils/generateRandomPassword.js";
 import {
   sendAccessEmail,
+  sendAccessRejectedEmail,
   notifyAdmin,
   sendAdminBootstrapEmail,
 } from "../services/emailService.js";
@@ -411,6 +412,50 @@ export const approveAccessRequest = async (
   } catch (error) {
     console.error("Approval Error:", error);
     const message = error instanceof Error ? error.message : "Approval failed";
+    return res.status(500).json({ message });
+  }
+};
+
+export const rejectAccessRequest = async (
+  req: AuthRequest<any>,
+  res: Response,
+) => {
+  const requestIdFromBody = Number(req.body?.requestId);
+  const requestIdFromParams = Number(req.params?.requestId);
+  const requestId = Number.isFinite(requestIdFromParams)
+    ? requestIdFromParams
+    : requestIdFromBody;
+
+  if (!Number.isFinite(requestId)) {
+    return res.status(400).json({ message: "Valid requestId is required" });
+  }
+
+  const rejectionReason = String(req.body?.reason || "").trim();
+
+  try {
+    const request = await prisma.accessRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request || request.approved) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    await prisma.accessRequest.delete({ where: { id: requestId } });
+
+    await sendAccessRejectedEmail({
+      to: request.email,
+      name: request.fullName,
+      reason: rejectionReason,
+    });
+
+    return res.status(200).json({
+      message: "Request rejected and applicant notified",
+    });
+  } catch (error) {
+    console.error("Reject Request Error:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to reject request";
     return res.status(500).json({ message });
   }
 };

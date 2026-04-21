@@ -54,6 +54,55 @@ export const getAssignmentStats = async () => {
     ]);
     return { active, thisMonth, returned, overdue };
 };
+export const updateAssignment = async (id, data) => {
+    const { assignedTo, payRollNo, departmentId, floorLevel, roomNumber, accessories, notes, expectedReturnCondition, } = data;
+    return await prisma.assetAssignment.update({
+        where: { id },
+        data: {
+            ...(assignedTo && { assignedTo }),
+            ...(payRollNo && { payRollNo }),
+            ...(departmentId && { departmentId: Number(departmentId) }),
+            ...(floorLevel !== undefined && { floorLevel }),
+            ...(roomNumber !== undefined && { roomNumber }),
+            ...(accessories !== undefined && { accessories }),
+            ...(notes !== undefined && { notes }),
+            ...(expectedReturnCondition && { expectedReturnCondition }),
+        },
+        include: {
+            asset: { select: { tagNo: true, model: true, category: true } },
+            department: { select: { name: true } },
+        },
+    });
+};
+export const deleteAssignment = async (id, userId) => {
+    const assignment = await prisma.assetAssignment.findUnique({
+        where: { id },
+        include: { asset: true },
+    });
+    if (!assignment) {
+        throw new Error("Assignment not found");
+    }
+    return await prisma.$transaction(async (tx) => {
+        await tx.assetAssignment.delete({ where: { id } });
+        const activeAssignments = await tx.assetAssignment.count({
+            where: { assetId: assignment.assetId, status: "ACTIVE" },
+        });
+        if (activeAssignments === 0) {
+            await tx.asset.update({
+                where: { id: assignment.assetId },
+                data: { status: "InStore" },
+            });
+        }
+        await tx.activityLog.create({
+            data: {
+                type: "STATUS_CHANGE",
+                message: `Assignment ${assignment.refNo} removed`,
+                assetId: assignment.assetId,
+                userId,
+            },
+        });
+    });
+};
 export const getAllAssignments = async (filters) => {
     const { status, search, page = 1, limit = 10 } = filters;
     const where = {};
@@ -80,6 +129,7 @@ export const getAllAssignments = async (filters) => {
             take: Number(limit),
             include: {
                 asset: { select: { tagNo: true, model: true, category: true } },
+                department: { select: { name: true } },
             },
             orderBy: { assignedAt: "desc" },
         }),

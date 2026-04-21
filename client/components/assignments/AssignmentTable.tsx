@@ -33,6 +33,8 @@ interface Props {
   activeTab: string;
   search: string;
   department: string;
+  onRefresh?: () => void;
+  onEditOpen?: (assignment: AssignmentRecord) => void;
 }
 
 const PAGE_SIZE = 8;
@@ -42,6 +44,8 @@ const AssignmentTable = ({
   activeTab,
   search = "",
   department,
+  onRefresh,
+  onEditOpen,
 }: Props) => {
   const [page, setPage] = useState(1);
   const [selectedAssignment, setSelectedAssignment] =
@@ -82,16 +86,16 @@ const AssignmentTable = ({
       <table className="w-full text-sm table-fixed">
         <thead>
           <tr className="border-b border-gray-100">
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[14%]">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[12%]">
               Ref No.
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[12%]">
               Asset Tag
             </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[16%]">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[14%]">
               Asset Name
             </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[16%]">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[14%]">
               Assigned To
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[12%]">
@@ -103,7 +107,7 @@ const AssignmentTable = ({
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[10%]">
               Status
             </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[8%]">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap w-[14%]">
               Actions
             </th>
           </tr>
@@ -152,12 +156,14 @@ const AssignmentTable = ({
                   </span>
                 </td>
                 <td className="px-4 py-4">
-                  <button
-                    onClick={() => setSelectedAssignment(a)}
-                    className="text-xs text-[#235FE7] font-semibold hover:underline"
-                  >
-                    View
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setSelectedAssignment(a)}
+                      className="text-xs text-[#235FE7] font-semibold hover:underline"
+                    >
+                      View
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))
@@ -206,6 +212,11 @@ const AssignmentTable = ({
       <AssignmentDetailsModal
         assignment={selectedAssignment}
         onClose={() => setSelectedAssignment(null)}
+        onEdit={(assignment) => {
+          setSelectedAssignment(null);
+          onEditOpen?.(assignment);
+        }}
+        onDelete={onRefresh}
       />
     </>
   );

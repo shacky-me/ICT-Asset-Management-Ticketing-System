@@ -124,6 +124,7 @@ const AssetsPage = () => {
             search={search}
             categoryFilter={categoryFilter}
             departmentFilter={departmentFilter}
+            canRemoveAssets={allowRegisterAsset}
           />
         </div>
       </div>

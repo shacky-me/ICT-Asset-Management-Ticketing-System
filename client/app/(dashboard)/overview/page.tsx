@@ -13,6 +13,7 @@ import { normalizeRole } from "@/lib/rbac";
 import { useDashboardSearch } from "@/lib/dashboardSearch";
 import { useAssets } from "@/lib/assets";
 import { useTickets } from "@/lib/tickets";
+import { useAssignments } from "@/lib/assignments";
 
 const OverviewPage = () => {
   const currentUser = useCurrentUser();
@@ -24,11 +25,22 @@ const OverviewPage = () => {
   const search = useDashboardSearch();
   const { assets: dashboardAssets, stats: assetStats } = useAssets();
   const { tickets: dashboardTickets, openOrInProgress } = useTickets();
+  const { items: dashboardAssignments } = useAssignments();
 
   const totalAssets = assetStats.total;
   const assignedAssets = assetStats.assigned;
   const inStoreAssets = assetStats.inStore;
   const maintenanceAssets = assetStats.maintenance;
+  const now = new Date();
+  const currentMonthAddedAssets = dashboardAssets.filter((asset) => {
+    const createdAt = new Date(asset.createdAt);
+    return (
+      createdAt.getFullYear() === now.getFullYear() &&
+      createdAt.getMonth() === now.getMonth()
+    );
+  }).length;
+  const utilizationPercent =
+    totalAssets > 0 ? Math.round((assignedAssets / totalAssets) * 100) : 0;
   const openTickets = openOrInProgress;
   const resolvedTickets = dashboardTickets.filter(
     (ticket) => ticket.status === "Resolved",
@@ -50,7 +62,11 @@ const OverviewPage = () => {
         <StatCard
           label={showAssetOps ? "Total Assets" : "My Open Tickets"}
           value={showAssetOps ? totalAssets : openTickets}
-          sub={showAssetOps ? "+100 this month" : "Awaiting ICT response"}
+          sub={
+            showAssetOps
+              ? `+${currentMonthAddedAssets} this month`
+              : "Awaiting ICT response"
+          }
           subColor="text-[#235FE7]"
           icon={showAssetOps ? Monitor : Ticket}
           iconColor="text-[#235FE7]"
@@ -69,7 +85,7 @@ const OverviewPage = () => {
             <StatCard
               label="Assigned"
               value={assignedAssets}
-              sub="50% utilised"
+              sub={`${utilizationPercent}% utilised`}
               subColor="text-purple-500"
               icon={Tag}
               iconColor="text-purple-500"
@@ -98,9 +114,15 @@ const OverviewPage = () => {
       <div
         className={`grid gap-4 ${showAssetOps ? "grid-cols-3" : "grid-cols-2"}`}
       >
-        {showAssetOps && <AssetsByCategory />}
-        <RecentActivity />
-        {showDepartmentReports && <DepartmentOverview />}
+        {showAssetOps && <AssetsByCategory assets={dashboardAssets} />}
+        <RecentActivity
+          assets={dashboardAssets}
+          tickets={dashboardTickets}
+          assignments={dashboardAssignments}
+        />
+        {showDepartmentReports && (
+          <DepartmentOverview assets={dashboardAssets} />
+        )}
       </div>
 
       {/* Tables */}

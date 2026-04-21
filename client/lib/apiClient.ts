@@ -150,6 +150,25 @@ export async function changeTemporaryPassword(payload: {
   };
 }
 
+export async function requestPasswordReset(payload: {
+  email: string;
+}): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function resetPasswordWithToken(payload: {
+  token: string;
+  newPassword: string;
+}): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>("/auth/reset-password", {
+    method: "POST",
+    body: payload,
+  });
+}
+
 type SubmitAccessRequestPayload = {
   fullName: string;
   staffNumber: string;
@@ -211,6 +230,16 @@ export async function approveAccessRequest(requestId: number): Promise<void> {
       method: "POST",
     },
   );
+}
+
+export async function rejectAccessRequest(
+  requestId: number,
+  reason?: string,
+): Promise<void> {
+  await apiRequest<{ message: string }>(`/access-request/${requestId}/reject`, {
+    method: "POST",
+    body: { reason: reason || "" },
+  });
 }
 
 type RegisterAssetResponse = {
@@ -282,9 +311,56 @@ export type ApiTicketStats = {
 export async function registerAsset(
   payload: AssetRegistrationFormData,
 ): Promise<RegisterAssetResponse> {
+  const flatPayload = {
+    tagNo: payload.step1.assetTagNumber.trim(),
+    systemAssetId: payload.step1.systemAssetId.trim(),
+    category: payload.step1.category.trim(),
+    subCategory: payload.step1.subCategory.trim(),
+    assetDescription: payload.step1.assetDescription.trim(),
+    make: payload.step1.make.trim(),
+    model: payload.step1.model.trim(),
+    physicalCondition: payload.step1.physicalCondition.trim(),
+    serialNumber: payload.step1.serialNumber.trim(),
+    macAddress: payload.step1.macAddress.trim(),
+    imeiNumber: payload.step1.imeiNumber.trim(),
+    color: payload.step1.colour.trim(),
+    processorCpu: payload.step2.processorCpu.trim(),
+    ramMemory: payload.step2.ramMemory.trim(),
+    primaryStorage: payload.step2.primaryStorage.trim(),
+    screenDisplaySize: payload.step2.screenDisplaySize.trim(),
+    powerRating: payload.step2.powerRating.trim(),
+    colourFinish: payload.step2.colourFinish.trim(),
+    operatingSystem: payload.step2.operatingSystem.trim(),
+    osVersionBuildNumber: payload.step2.osVersionBuildNumber.trim(),
+    ipAddress: payload.step2.ipAddress.trim(),
+    hostnameComputerName: payload.step2.hostnameComputerName.trim(),
+    procurementDate: payload.step3.procurementDate.trim(),
+    supplierVendor: payload.step3.supplierVendor.trim(),
+    fundingSource: payload.step3.fundingSource.trim(),
+    invoiceNumber: payload.step3.invoiceNumber.trim(),
+    lpoOrderNumber: payload.step3.lpoOrderNumber.trim(),
+    purchasePrice: payload.step3.purchasePrice.trim(),
+    grantProjectReference: payload.step3.grantProjectReference.trim(),
+    warrantyStartDate: payload.step3.warrantyStartDate.trim(),
+    warrantyEndDate: payload.step3.warrantyEndDate.trim(),
+    warrantyType: payload.step3.warrantyType.trim(),
+    warrantyProvider: payload.step3.warrantyProvider.trim(),
+    warrantyContactReference: payload.step3.warrantyContactReference.trim(),
+    insurancePolicyNumber: payload.step3.insurancePolicyNumber.trim(),
+    insuranceExpiryDate: payload.step3.insuranceExpiryDate.trim(),
+    department: payload.step4.department.trim(),
+    buildingSite: payload.step4.buildingSite.trim(),
+    floorLevel: payload.step4.floorLevel.trim(),
+    roomOfficeNumber: payload.step4.roomOfficeNumber.trim(),
+    accessoriesIncluded: payload.step4.accessoriesIncluded.trim(),
+    additionalNotes: payload.step4.additionalNotes.trim(),
+    scheduledDisposalDate: payload.step4.scheduledDisposalDate.trim(),
+    plannedDisposalMethod: payload.step4.plannedDisposalMethod.trim(),
+  };
+
   return apiRequest<RegisterAssetResponse>("/assets", {
     method: "POST",
-    body: payload,
+    body: flatPayload,
   });
 }
 
@@ -308,6 +384,14 @@ export async function getAssets(params?: {
 
 export async function getAssetStats(): Promise<ApiAssetStats> {
   return apiRequest<ApiAssetStats>("/assets/status");
+}
+
+export async function deleteAsset(
+  assetId: number,
+): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/assets/${assetId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function getAssignments(params?: {
@@ -347,6 +431,33 @@ export async function createAssignment(payload: {
   return apiRequest<{ assignment: ApiAssignment }>("/assignments", {
     method: "POST",
     body: payload,
+  });
+}
+
+export async function updateAssignment(
+  id: number,
+  payload: Partial<{
+    assignedTo: string;
+    payRollNo: string;
+    departmentId: number;
+    floorLevel: string;
+    roomNumber: string;
+    accessories: string;
+    notes: string;
+    expectedReturnCondition: string;
+  }>,
+): Promise<{ assignment: ApiAssignment }> {
+  return apiRequest<{ assignment: ApiAssignment }>(`/assignments/${id}`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+export async function deleteAssignment(
+  id: number,
+): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/assignments/${id}`, {
+    method: "DELETE",
   });
 }
 

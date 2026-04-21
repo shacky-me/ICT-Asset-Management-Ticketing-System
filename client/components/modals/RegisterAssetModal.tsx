@@ -19,6 +19,7 @@ import {
 } from "@/lib/validations/assetRegistration";
 import { AssetIdentificationSchema } from "@/lib/validations/assetIdentity";
 import { registerAsset } from "@/lib/apiClient";
+import { publishAssetsChanged } from "@/lib/assets";
 import { addNotification } from "@/lib/notifications";
 import Step1Identification from "../steps/Step1Identification";
 import Step2HardwareSpecs from "../steps/Step2HardwareSpecs";
@@ -372,16 +373,36 @@ export default function RegisterAssetModal({
     setIsSubmitting(true);
     try {
       const response = await registerAsset(formData);
+      publishAssetsChanged();
       addNotification({
         title: "Asset registered",
         message: `${formData.step1.assetTagNumber} has been saved as ${response.systemAssetId}.`,
         type: "asset",
       });
       setIsRegistered(true);
-    } catch {
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Unable to submit now. Please try again.";
+
+      const normalized = message.toLowerCase();
+      if (
+        normalized.includes("missing required fields") ||
+        normalized.includes("department not found")
+      ) {
+        setStep4Errors((prev) => ({
+          ...prev,
+          department:
+            "Select a valid department before submitting asset registration.",
+        }));
+        setCurrentStep(4);
+        return;
+      }
+
       setStep1Errors((prev) => ({
         ...prev,
-        assetTagNumber: "Unable to submit now. Please try again.",
+        assetTagNumber: message,
       }));
       setCurrentStep(1);
     } finally {

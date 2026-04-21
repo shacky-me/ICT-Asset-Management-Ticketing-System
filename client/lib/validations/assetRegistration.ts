@@ -126,10 +126,13 @@ export const AssetProcurementSchema = z
 
 export const AssetAssignmentSchema = z
   .object({
-    department: optionalTrimmed.refine(
-      (value) => !value || departments.has(value),
-      "Please select a valid department",
-    ),
+    department: z
+      .string()
+      .trim()
+      .min(1, "Department is required")
+      .refine((value) => departments.has(value), {
+        message: "Please select a valid department",
+      }),
     buildingSite: optionalTrimmed.refine(
       (value) => !value || buildings.has(value),
       "Please select a valid building",

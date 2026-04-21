@@ -110,7 +110,7 @@ export default function Step4Assignment({ data, onChange, errors }: Props) {
         <SectionHeading>Location</SectionHeading>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <FieldLabel>Department</FieldLabel>
+            <FieldLabel required>Department</FieldLabel>
             <SelectInput
               value={data.department}
               onChange={(v) => onChange("department", v)}

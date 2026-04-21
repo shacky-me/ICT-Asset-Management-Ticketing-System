@@ -11,6 +11,7 @@ import {
 export type AssignmentStatus = "Assigned" | "Returned" | "Overdue";
 
 export type AssignmentRecord = {
+  id: number;
   ref: string;
   assetTag: string;
   assetName: string;
@@ -29,6 +30,7 @@ function mapStatus(input: ApiAssignment): AssignmentStatus {
 
 function mapAssignment(input: ApiAssignment): AssignmentRecord {
   return {
+    id: input.id,
     ref: input.refNo,
     assetTag: input.asset?.tagNo || "N/A",
     assetName: input.asset?.model || input.asset?.category || "Unknown Asset",
