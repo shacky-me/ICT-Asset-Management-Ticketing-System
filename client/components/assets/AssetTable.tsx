@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import AssetDetailsModal from "@/components/assets/AssetDetailsModal";
+import ConfirmActionModal from "@/components/ui/ConfirmActionModal";
 import { deleteAsset } from "@/lib/apiClient";
 import { publishAssetsChanged, type AssetRow } from "@/lib/assets";
 import { addNotification } from "@/lib/notifications";
@@ -62,10 +63,17 @@ const AssetTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [deletingAssetId, setDeletingAssetId] = useState<number | null>(null);
+  const [removedAssetIds, setRemovedAssetIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+  const [assetPendingRemoval, setAssetPendingRemoval] = useState<Asset | null>(
+    null,
+  );
 
   const filtered = useMemo(
     () =>
       assets
+        .filter((a) => !removedAssetIds.has(a.id))
         .filter((a) => activeTab === "All" || a.status === activeTab)
         .filter(
           (a) =>
@@ -89,7 +97,14 @@ const AssetTable = ({
             a.serial.toLowerCase().includes(query)
           );
         }),
-    [activeTab, assets, categoryFilter, departmentFilter, search],
+    [
+      activeTab,
+      assets,
+      categoryFilter,
+      departmentFilter,
+      removedAssetIds,
+      search,
+    ],
   );
 
   const totalRecords = filtered.length;
@@ -111,21 +126,23 @@ const AssetTable = ({
     setCurrentPage(page);
   }
 
-  async function handleRemoveAsset(asset: Asset) {
-    const confirmed = window.confirm(
-      `Remove ${asset.tag} from the register? This action cannot be undone.`,
-    );
-    if (!confirmed) return;
-
+  async function confirmRemoveAsset() {
+    if (!assetPendingRemoval) return;
     try {
-      setDeletingAssetId(asset.id);
-      await deleteAsset(asset.id);
+      setDeletingAssetId(assetPendingRemoval.id);
+      await deleteAsset(assetPendingRemoval.id);
       addNotification({
         title: "Asset removed",
-        message: `${asset.tag} was removed from the register.`,
+        message: `${assetPendingRemoval.tag} was removed from the register.`,
         type: "asset",
       });
+      setRemovedAssetIds((prev) => {
+        const next = new Set(prev);
+        next.add(assetPendingRemoval.id);
+        return next;
+      });
       publishAssetsChanged();
+      setAssetPendingRemoval(null);
     } catch (error) {
       addNotification({
         title: "Unable to remove asset",
@@ -222,7 +239,7 @@ const AssetTable = ({
                     </button>
                     {canRemoveAssets && (
                       <button
-                        onClick={() => handleRemoveAsset(a)}
+                        onClick={() => setAssetPendingRemoval(a)}
                         disabled={deletingAssetId === a.id}
                         className="text-xs text-red-600 font-semibold hover:underline whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -307,6 +324,23 @@ const AssetTable = ({
       <AssetDetailsModal
         asset={selectedAsset}
         onClose={() => setSelectedAsset(null)}
+      />
+
+      <ConfirmActionModal
+        isOpen={Boolean(assetPendingRemoval)}
+        title="Remove Asset"
+        message={
+          assetPendingRemoval
+            ? `Remove ${assetPendingRemoval.tag} from the register? This action cannot be undone.`
+            : ""
+        }
+        confirmLabel="Remove Asset"
+        isLoading={
+          Boolean(assetPendingRemoval) &&
+          deletingAssetId === assetPendingRemoval?.id
+        }
+        onClose={() => setAssetPendingRemoval(null)}
+        onConfirm={confirmRemoveAsset}
       />
     </>
   );

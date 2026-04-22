@@ -258,6 +258,10 @@ export type ApiAsset = {
   status: string;
   createdAt: string;
   department?: { name: string };
+  procurement?: {
+    warrantyEnd?: string | null;
+    warrantyType?: string | null;
+  } | null;
 };
 
 export type ApiAssetStats = {

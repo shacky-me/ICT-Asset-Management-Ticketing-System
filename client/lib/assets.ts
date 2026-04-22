@@ -29,9 +29,26 @@ export type AssetStats = {
 function mapAssetStatus(raw: string): AssetRow["status"] {
   const value = (raw || "").toLowerCase();
   if (value === "assigned") return "Assigned";
+  if (value === "available") return "In Store";
   if (value === "instore" || value === "in store") return "In Store";
   if (value === "maintenance") return "Maintenance";
+  if (value === "flagged") return "Flagged";
   return "Flagged";
+}
+
+function mapWarranty(input: ApiAsset): string {
+  const warrantyType = input.procurement?.warrantyType?.trim().toLowerCase();
+  if (warrantyType === "no warranty") {
+    return "No Warranty";
+  }
+
+  const rawWarrantyEnd = input.procurement?.warrantyEnd;
+  if (!rawWarrantyEnd) return "Unknown";
+
+  const parsed = new Date(rawWarrantyEnd);
+  if (Number.isNaN(parsed.getTime())) return "Unknown";
+
+  return parsed.getTime() >= Date.now() ? "Active" : "Expired";
 }
 
 function mapAsset(input: ApiAsset): AssetRow {
@@ -45,7 +62,7 @@ function mapAsset(input: ApiAsset): AssetRow {
     serial: input.serialNumber,
     status: mapAssetStatus(input.status),
     department: input.department?.name || "Unassigned",
-    warranty: "Unknown",
+    warranty: mapWarranty(input),
     createdAt: input.createdAt,
   };
 }

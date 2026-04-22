@@ -1,5 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
+import ConfirmActionModal from "@/components/ui/ConfirmActionModal";
 import { Download } from "lucide-react";
 import RegisterAssetModal from "../modals/RegisterAssetModal";
 import { useMemo, useState } from "react";
@@ -24,12 +25,12 @@ function toAssetDetails(asset: DashboardAsset) {
     tag: asset.tag,
     name: asset.name,
     category: asset.category,
-    make: asset.category,
-    model: asset.name,
+    make: asset.make,
+    model: asset.model,
     serial: asset.serial,
     status: asset.status,
     department: asset.department,
-    warranty: "N/A",
+    warranty: asset.warranty,
   };
 }
 
@@ -46,19 +47,26 @@ const AssetRegisterTable = ({
     null,
   );
   const [deletingAssetId, setDeletingAssetId] = useState<number | null>(null);
+  const [removedAssetIds, setRemovedAssetIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+  const [assetPendingRemoval, setAssetPendingRemoval] =
+    useState<DashboardAsset | null>(null);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return assets;
 
-    return assets.filter(
-      (asset) =>
-        asset.tag.toLowerCase().includes(query) ||
-        asset.name.toLowerCase().includes(query) ||
-        asset.category.toLowerCase().includes(query) ||
-        asset.department.toLowerCase().includes(query),
-    );
-  }, [assets, search]);
+    return assets
+      .filter((asset) => !removedAssetIds.has(asset.id))
+      .filter(
+        (asset) =>
+          asset.tag.toLowerCase().includes(query) ||
+          asset.name.toLowerCase().includes(query) ||
+          asset.category.toLowerCase().includes(query) ||
+          asset.department.toLowerCase().includes(query),
+      );
+  }, [assets, removedAssetIds, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const effectivePage = Math.min(currentPage, totalPages);
@@ -85,21 +93,23 @@ const AssetRegisterTable = ({
     exportToCSV(formatted, "asset-register.csv");
   };
 
-  const handleRemoveAsset = async (asset: DashboardAsset) => {
-    const confirmed = window.confirm(
-      `Remove ${asset.tag} from the register? This action cannot be undone.`,
-    );
-    if (!confirmed) return;
-
+  const confirmRemoveAsset = async () => {
+    if (!assetPendingRemoval) return;
     try {
-      setDeletingAssetId(asset.id);
-      await deleteAsset(asset.id);
+      setDeletingAssetId(assetPendingRemoval.id);
+      await deleteAsset(assetPendingRemoval.id);
       addNotification({
         title: "Asset removed",
-        message: `${asset.tag} was removed from the register.`,
+        message: `${assetPendingRemoval.tag} was removed from the register.`,
         type: "asset",
       });
+      setRemovedAssetIds((prev) => {
+        const next = new Set(prev);
+        next.add(assetPendingRemoval.id);
+        return next;
+      });
       publishAssetsChanged();
+      setAssetPendingRemoval(null);
     } catch (error) {
       addNotification({
         title: "Unable to remove asset",
@@ -145,69 +155,73 @@ const AssetRegisterTable = ({
             </Button>
           </div>
         </div>
-        <table className="w-full text-sm table-fixed">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium w-32">
-                Asset Tag
-              </th>
-              <th className="px-4 py-3 text-left font-medium w-36">Name</th>
-              <th className="px-4 py-3 text-left font-medium w-24">Category</th>
-              <th className="px-4 py-3 text-left font-medium w-28">
-                Serial No.
-              </th>
-              <th className="px-4 py-3 text-left font-medium w-28">Status</th>
-              <th className="px-4 py-3 text-left font-medium w-32">
-                Assigned To
-              </th>
-              <th className="px-4 py-3 text-left font-medium w-28">
-                Department
-              </th>
-              <th className="px-4 py-3 text-left font-medium w-20">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {visibleRows.map((a) => (
-              <tr key={a.tag} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3 text-[#235FE7] font-medium">
-                  {a.tag}
-                </td>
-                <td className="px-4 py-3 text-gray-700">{a.name}</td>
-                <td className="px-4 py-3 text-gray-500">{a.category}</td>
-                <td className="px-4 py-3 text-gray-500">{a.serial}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusStyles[a.status]}`}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0" />
-                    {a.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-gray-700">
-                  {a.assignedTo || "—"}
-                </td>
-                <td className="px-4 py-3 text-gray-500">{a.department}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setSelectedAsset(a)}
-                      className="text-[#235FE7] font-medium hover:underline"
-                    >
-                      View
-                    </button>
-                    <button
-                      onClick={() => handleRemoveAsset(a)}
-                      disabled={deletingAssetId === a.id}
-                      className="text-red-600 font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {deletingAssetId === a.id ? "Removing..." : "Remove"}
-                    </button>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-245 text-sm table-fixed">
+            <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium w-32">
+                  Asset Tag
+                </th>
+                <th className="px-4 py-3 text-left font-medium w-36">Name</th>
+                <th className="px-4 py-3 text-left font-medium w-24">
+                  Category
+                </th>
+                <th className="px-4 py-3 text-left font-medium w-28">
+                  Serial No.
+                </th>
+                <th className="px-4 py-3 text-left font-medium w-28">Status</th>
+                <th className="px-4 py-3 text-left font-medium w-32">
+                  Assigned To
+                </th>
+                <th className="px-4 py-3 text-left font-medium w-28">
+                  Department
+                </th>
+                <th className="px-4 py-3 text-left font-medium w-36">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {visibleRows.map((a) => (
+                <tr key={a.tag} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 text-[#235FE7] font-medium">
+                    {a.tag}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">{a.name}</td>
+                  <td className="px-4 py-3 text-gray-500">{a.category}</td>
+                  <td className="px-4 py-3 text-gray-500">{a.serial}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusStyles[a.status]}`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0" />
+                      {a.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {a.assignedTo || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{a.department}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3 whitespace-nowrap">
+                      <button
+                        onClick={() => setSelectedAsset(a)}
+                        className="text-[#235FE7] font-medium hover:underline"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => setAssetPendingRemoval(a)}
+                        disabled={deletingAssetId === a.id}
+                        className="text-red-600 font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deletingAssetId === a.id ? "Removing..." : "Remove"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
           <p className="text-xs text-gray-400">
             Showing {startRow}-{endRow} of {filtered.length} assets
@@ -239,6 +253,23 @@ const AssetRegisterTable = ({
       <AssetDetailsModal
         asset={selectedAsset ? toAssetDetails(selectedAsset) : null}
         onClose={() => setSelectedAsset(null)}
+      />
+
+      <ConfirmActionModal
+        isOpen={Boolean(assetPendingRemoval)}
+        title="Remove Asset"
+        message={
+          assetPendingRemoval
+            ? `Remove ${assetPendingRemoval.tag} from the register? This action cannot be undone.`
+            : ""
+        }
+        confirmLabel="Remove Asset"
+        isLoading={
+          Boolean(assetPendingRemoval) &&
+          deletingAssetId === assetPendingRemoval?.id
+        }
+        onClose={() => setAssetPendingRemoval(null)}
+        onConfirm={confirmRemoveAsset}
       />
     </div>
   );
