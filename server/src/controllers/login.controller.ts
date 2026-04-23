@@ -6,6 +6,13 @@ import type { AuthRequest } from "../types/auth.types.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";
 import { generateTempPassword } from "../utils/generateRandomPassword.js";
 
+function toRoleLabel(role: string): string {
+  if (role === "ICT_ADMIN") return "ICT Administrator";
+  if (role === "ICT_OFFICER") return "ICT Officer";
+  if (role === "SUPERVISOR") return "Supervisor";
+  return "End User";
+}
+
 export const login = async (req: Request, res: Response) => {
   try {
     const { identifier, email, password } = req.body;
@@ -73,8 +80,7 @@ export const login = async (req: Request, res: Response) => {
       options,
     );
 
-    const mappedRole =
-      user.role === "ICT_ADMIN" ? "ICT Administrator" : "ICT Officer";
+    const mappedRole = toRoleLabel(user.role);
 
     return res.status(200).json({
       message: "Login successful",
@@ -118,8 +124,7 @@ export const me = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const mappedRole =
-      user.role === "ICT_ADMIN" ? "ICT Administrator" : "ICT Officer";
+    const mappedRole = toRoleLabel(user.role);
 
     return res.status(200).json({
       user: {
@@ -196,8 +201,7 @@ export const changeTemporaryPassword = async (
       include: { department: true },
     });
 
-    const mappedRole =
-      updatedUser.role === "ICT_ADMIN" ? "ICT Administrator" : "ICT Officer";
+    const mappedRole = toRoleLabel(updatedUser.role);
 
     return res.status(200).json({
       message: "Password updated successfully",
@@ -458,7 +462,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
       totalCount: users.length,
       users: users.map((user) => ({
         ...user,
-        role: user.role === "ICT_ADMIN" ? "ICT Administrator" : "ICT Officer",
+        role: toRoleLabel(user.role),
       })),
     });
   } catch (error) {
@@ -482,21 +486,25 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "User ID and role are required" });
     }
 
+    const allowedRoles = ["END_USER", "SUPERVISOR", "ICT_OFFICER", "ICT_ADMIN"];
+
     // Validate role
-    if (!["ICT_ADMIN", "ICT_OFFICER"].includes(role)) {
+    if (!allowedRoles.includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
     }
 
-    // Prevent self-demotion
-    if (req.user?.id === userId && role === "ICT_OFFICER") {
+    // Prevent accidental self lockout from admin-only operations.
+    if (req.user?.id === userId && role !== "ICT_ADMIN") {
       return res
         .status(400)
-        .json({ message: "Cannot demote yourself from admin" });
+        .json({ message: "Cannot change your own role from administrator" });
     }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { role: role as "ICT_ADMIN" | "ICT_OFFICER" },
+      data: {
+        role: role as "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN",
+      },
       select: {
         id: true,
         fullName: true,
@@ -512,10 +520,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
       message: "User role updated successfully",
       user: {
         ...updatedUser,
-        role:
-          updatedUser.role === "ICT_ADMIN"
-            ? "ICT Administrator"
-            : "ICT Officer",
+        role: toRoleLabel(updatedUser.role),
       },
     });
   } catch (error) {

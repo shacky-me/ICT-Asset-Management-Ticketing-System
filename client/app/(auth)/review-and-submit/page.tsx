@@ -39,10 +39,22 @@ function getLoadingLabel(progress: number): string {
   return "Almost done…";
 }
 
-function mapUiRoleToBackendRole(role: string): "ICT_OFFICER" | "ICT_ADMIN" {
+function mapUiRoleToBackendRole(
+  role: string,
+): "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN" {
   const normalizedRole = role.trim().toLowerCase();
-  if (normalizedRole.includes("admin")) return "ICT_ADMIN";
-  return "ICT_OFFICER";
+
+  if (normalizedRole === "administrator" || normalizedRole.includes("admin")) {
+    return "ICT_ADMIN";
+  }
+  if (normalizedRole === "officer" || normalizedRole.includes("officer")) {
+    return "ICT_OFFICER";
+  }
+  if (normalizedRole === "supervisor" || normalizedRole.includes("hod")) {
+    return "SUPERVISOR";
+  }
+
+  return "END_USER";
 }
 
 const ReviewAndSubmit = () => {

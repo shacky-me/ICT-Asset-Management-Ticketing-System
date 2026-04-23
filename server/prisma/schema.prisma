@@ -157,6 +157,8 @@ enum ActivityType {
 }
 
 enum Role {
+  END_USER
+  SUPERVISOR
   ICT_OFFICER
   ICT_ADMIN
 }

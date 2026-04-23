@@ -1,12 +1,5 @@
 import { prisma } from "../prisma.js";
 
-/**
- * Migration: Fix Admin Role
- *
- * This script:
- * 1. Sets meshackkiprono12@gmail.com as ICT_ADMIN
- * 2. Ensures proper admin access
- */
 async function fixAdminRole() {
   try {
     console.log("Starting admin role migration...");

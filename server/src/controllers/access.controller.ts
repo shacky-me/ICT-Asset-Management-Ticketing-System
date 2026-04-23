@@ -14,8 +14,13 @@ import type { CreateAccessRequestBody } from "../types/access.Request.types.js";
 function resolveRequestedRole(
   roleRequested?: string,
   role?: string,
-): "ICT_OFFICER" | "ICT_ADMIN" | null {
-  if (roleRequested === "ICT_OFFICER" || roleRequested === "ICT_ADMIN") {
+): "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN" | null {
+  if (
+    roleRequested === "END_USER" ||
+    roleRequested === "SUPERVISOR" ||
+    roleRequested === "ICT_OFFICER" ||
+    roleRequested === "ICT_ADMIN"
+  ) {
     return roleRequested;
   }
 
@@ -24,20 +29,23 @@ function resolveRequestedRole(
     .toLowerCase();
 
   if (!normalizedRole) {
-    return "ICT_OFFICER";
+    return "END_USER";
   }
 
   if (normalizedRole.includes("admin")) {
     return "ICT_ADMIN";
   }
 
-  if (
-    normalizedRole.includes("officer") ||
-    normalizedRole.includes("staff") ||
-    normalizedRole.includes("supervisor") ||
-    normalizedRole.includes("end user")
-  ) {
+  if (normalizedRole.includes("supervisor") || normalizedRole.includes("hod")) {
+    return "SUPERVISOR";
+  }
+
+  if (normalizedRole.includes("officer") || normalizedRole.includes("ict")) {
     return "ICT_OFFICER";
+  }
+
+  if (normalizedRole.includes("staff") || normalizedRole.includes("end user")) {
+    return "END_USER";
   }
 
   return null;
@@ -174,7 +182,8 @@ export const createAccessRequest = async (
 
     if (!resolvedRole) {
       return res.status(400).json({
-        message: "Invalid role requested. Use ICT_OFFICER or ICT_ADMIN.",
+        message:
+          "Invalid role requested. Use END_USER, SUPERVISOR, ICT_OFFICER, or ICT_ADMIN.",
       });
     }
 

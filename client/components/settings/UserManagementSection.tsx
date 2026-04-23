@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import AccessRequestDecisionModal from "@/components/settings/AccessRequestDecisionModal";
+import UserRoleChangeModal from "@/components/settings/UserRoleChangeModal";
 import {
   approveAccessRequest,
   getPendingAccessRequests,
@@ -14,6 +15,18 @@ import {
 } from "@/lib/apiClient";
 import { useCurrentUser } from "@/lib/session";
 import { Shield, User } from "lucide-react";
+
+type RoleCode = "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN";
+
+function roleLabelToCode(roleLabel: string): RoleCode {
+  const normalized = String(roleLabel || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "ict administrator") return "ICT_ADMIN";
+  if (normalized === "ict officer") return "ICT_OFFICER";
+  if (normalized === "supervisor") return "SUPERVISOR";
+  return "END_USER";
+}
 
 function formatDate(value: string) {
   const parsed = new Date(value);
@@ -31,6 +44,7 @@ const UserManagementSection = () => {
   const [statusMessage, setStatusMessage] = useState("");
   const [userStatusMessage, setUserStatusMessage] = useState("");
   const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
+  const [roleFilter, setRoleFilter] = useState<"all" | RoleCode>("all");
   const [requestSearchQuery, setRequestSearchQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -40,6 +54,11 @@ const UserManagementSection = () => {
   const [decisionRequest, setDecisionRequest] =
     useState<PendingAccessRequest | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
+  const [roleModalUser, setRoleModalUser] = useState<ApiSystemUser | null>(
+    null,
+  );
+  const [selectedRoleCode, setSelectedRoleCode] =
+    useState<RoleCode>("END_USER");
 
   const pageSize = 5;
 
@@ -165,32 +184,37 @@ const UserManagementSection = () => {
     }
   };
 
-  const handleRoleChange = async (user: ApiSystemUser) => {
-    const newRole =
-      user.role === "ICT Administrator" ? "ICT_OFFICER" : "ICT_ADMIN";
-    const confirmMessage =
-      newRole === "ICT_ADMIN"
-        ? `Promote ${user.fullName} to ICT Administrator?`
-        : `Demote ${user.fullName} to ICT Officer?`;
+  const openRoleModal = (user: ApiSystemUser, nextRole?: RoleCode) => {
+    setRoleModalUser(user);
+    setSelectedRoleCode(nextRole ?? roleLabelToCode(user.role));
+  };
 
-    if (!window.confirm(confirmMessage)) return;
+  const closeRoleModal = () => {
+    setRoleModalUser(null);
+  };
 
-    setUpdatingUserId(user.id);
+  const handleRoleChange = async () => {
+    if (!roleModalUser) return;
+
+    setUpdatingUserId(roleModalUser.id);
     setUserStatusMessage("");
 
     try {
-      const result = await updateUserRole(user.id, newRole);
+      const result = await updateUserRole(roleModalUser.id, selectedRoleCode);
       setUsers((prev) =>
         prev.map((u) =>
-          u.id === user.id ? { ...u, role: result.user.role } : u,
+          u.id === roleModalUser.id ? { ...u, role: result.user.role } : u,
         ),
       );
-      setUserStatusMessage(`${user.fullName}'s role updated successfully`);
+      setUserStatusMessage(
+        `${roleModalUser.fullName}'s role updated to ${result.user.role}.`,
+      );
+      closeRoleModal();
     } catch (error) {
       const detail =
         error instanceof Error && error.message ? ` ${error.message}` : "";
       setUserStatusMessage(
-        `Unable to update ${user.fullName}'s role.${detail}`,
+        `Unable to update ${roleModalUser.fullName}'s role.${detail}`,
       );
     } finally {
       setUpdatingUserId(null);
@@ -230,11 +254,16 @@ const UserManagementSection = () => {
     currentPage * pageSize,
   );
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const normalizedSearch = searchQuery.toLowerCase();
+  const filteredUsers = users.filter((user) => {
+    const matchesQuery =
+      user.fullName.toLowerCase().includes(normalizedSearch) ||
+      user.email.toLowerCase().includes(normalizedSearch);
+    const matchesRole =
+      roleFilter === "all" || roleLabelToCode(user.role) === roleFilter;
+
+    return matchesQuery && matchesRole;
+  });
 
   return (
     <div className="space-y-6">
@@ -372,13 +401,28 @@ const UserManagementSection = () => {
         )}
 
         <div className="px-6 py-4">
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div className="grid gap-3 md:grid-cols-3">
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <select
+              value={roleFilter}
+              onChange={(event) =>
+                setRoleFilter(event.target.value as "all" | RoleCode)
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All roles</option>
+              <option value="END_USER">End User</option>
+              <option value="SUPERVISOR">Supervisor</option>
+              <option value="ICT_OFFICER">ICT Officer</option>
+              <option value="ICT_ADMIN">ICT Administrator</option>
+            </select>
+          </div>
         </div>
 
         {isUsersLoading ? (
@@ -405,6 +449,9 @@ const UserManagementSection = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
                     Current Role
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+                    Department
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
                     Joined
@@ -449,34 +496,59 @@ const UserManagementSection = () => {
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm text-gray-600">
+                        {user.department?.name || "N/A"}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm text-gray-600">
                         {formatDate(user.createdAt)}
                       </p>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => handleRoleChange(user)}
-                        disabled={
-                          updatingUserId === user.id ||
-                          String(user.id) === currentUser?.id
-                        }
-                        className={`text-xs font-medium px-3 py-1.5 rounded transition-colors ${
-                          updatingUserId === user.id
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                            : String(user.id) === currentUser?.id
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() =>
+                            openRoleModal(
+                              user,
+                              user.role === "ICT Administrator"
+                                ? "ICT_OFFICER"
+                                : "ICT_ADMIN",
+                            )
+                          }
+                          disabled={
+                            updatingUserId === user.id ||
+                            String(user.id) === currentUser?.id
+                          }
+                          className={`text-xs font-medium px-3 py-1.5 rounded transition-colors ${
+                            updatingUserId === user.id
                               ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              : String(user.id) === currentUser?.id
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                : user.role === "ICT Administrator"
+                                  ? "bg-red-50 text-red-600 hover:bg-red-100"
+                                  : "bg-green-50 text-green-600 hover:bg-green-100"
+                          }`}
+                        >
+                          {updatingUserId === user.id
+                            ? "Updating..."
+                            : String(user.id) === currentUser?.id
+                              ? "Current Admin"
                               : user.role === "ICT Administrator"
-                                ? "bg-red-50 text-red-600 hover:bg-red-100"
-                                : "bg-green-50 text-green-600 hover:bg-green-100"
-                        }`}
-                      >
-                        {updatingUserId === user.id
-                          ? "Updating..."
-                          : String(user.id) === currentUser?.id
-                            ? "Current Admin"
-                            : user.role === "ICT Administrator"
-                              ? "Demote"
-                              : "Promote"}
-                      </button>
+                                ? "Demote"
+                                : "Promote"}
+                        </button>
+
+                        <button
+                          onClick={() => openRoleModal(user)}
+                          disabled={
+                            updatingUserId === user.id ||
+                            String(user.id) === currentUser?.id
+                          }
+                          className="text-xs font-medium px-3 py-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        >
+                          Change Role
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -504,6 +576,22 @@ const UserManagementSection = () => {
             return;
           }
           void handleReject(decisionRequest);
+        }}
+      />
+
+      <UserRoleChangeModal
+        isOpen={Boolean(roleModalUser)}
+        userName={roleModalUser?.fullName || ""}
+        userEmail={roleModalUser?.email || ""}
+        currentRoleLabel={roleModalUser?.role || ""}
+        selectedRole={selectedRoleCode}
+        isLoading={Boolean(
+          roleModalUser && updatingUserId === roleModalUser.id,
+        )}
+        onRoleChange={setSelectedRoleCode}
+        onClose={closeRoleModal}
+        onConfirm={() => {
+          void handleRoleChange();
         }}
       />
     </div>

@@ -182,7 +182,7 @@ type SubmitAccessRequestPayload = {
   email: string;
   department: string;
   role?: string;
-  roleRequested?: "ICT_OFFICER" | "ICT_ADMIN";
+  roleRequested?: "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN";
   reason?: string;
 };
 
@@ -198,7 +198,7 @@ export type PendingAccessRequest = {
   jobTitle: string;
   email: string;
   department: string;
-  roleRequested: "ICT_OFFICER" | "ICT_ADMIN";
+  roleRequested: "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN";
   reason: string;
   createdAt: string;
 };
