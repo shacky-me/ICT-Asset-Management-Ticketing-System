@@ -10,7 +10,7 @@ import {
   requireAdmin,
 } from "../middlewares/auth.middleware.js";
 
-const router = Router();
+const router: Router = Router();
 
 router.post("/", createAccessRequest);
 router.get(

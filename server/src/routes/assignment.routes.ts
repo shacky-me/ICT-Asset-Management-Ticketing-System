@@ -2,7 +2,7 @@ import { Router } from "express";
 import * as assignmentCtrl from "../controllers/assignment.controller.js";
 import { authenticateToken } from "../middlewares/auth.middleware.js";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticateToken);
 

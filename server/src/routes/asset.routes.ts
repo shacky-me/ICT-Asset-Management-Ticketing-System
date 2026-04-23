@@ -8,7 +8,7 @@ import {
 } from "../controllers/asset.controller.js";
 import { authenticateToken } from "../middlewares/auth.middleware.js";
 
-const router = Router();
+const router: Router = Router();
 
 router.get("/status", authenticateToken, getStats);
 

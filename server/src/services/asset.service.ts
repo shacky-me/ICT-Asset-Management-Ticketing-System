@@ -202,12 +202,6 @@ export const removeAsset = async (id: number, userId: number) => {
     throw new Error("Asset not found");
   }
 
-  if (asset.assignment.length > 0) {
-    throw new Error(
-      "Cannot remove asset while it has an active assignment. Return it first.",
-    );
-  }
-
   await prisma.$transaction(async (tx) => {
     await tx.activityLog.create({
       data: {

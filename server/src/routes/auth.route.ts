@@ -9,7 +9,7 @@ import {
 } from "../controllers/login.controller.js";
 import { authenticateToken } from "../middlewares/auth.middleware.js";
 
-const router = Router();
+const router: Router = Router();
 
 router.post("/auth/login", login);
 router.post("/auth/forgot-password", forgotPassword);

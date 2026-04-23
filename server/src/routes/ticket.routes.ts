@@ -6,7 +6,7 @@ import {
   ticketStatsHandler,
 } from "../controllers/ticket.controller.js";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticateToken);
 router.get("/", listTicketsHandler);
