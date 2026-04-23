@@ -55,17 +55,17 @@ const AssetRegisterTable = ({
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return assets;
-
     return assets
       .filter((asset) => !removedAssetIds.has(asset.id))
-      .filter(
-        (asset) =>
+      .filter((asset) => {
+        if (!query) return true;
+        return (
           asset.tag.toLowerCase().includes(query) ||
           asset.name.toLowerCase().includes(query) ||
           asset.category.toLowerCase().includes(query) ||
-          asset.department.toLowerCase().includes(query),
-      );
+          asset.department.toLowerCase().includes(query)
+        );
+      });
   }, [assets, removedAssetIds, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
