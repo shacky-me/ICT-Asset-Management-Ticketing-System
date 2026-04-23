@@ -121,17 +121,6 @@ export const MOCK_ASSETS = [
   },
 ];
 
-// Mock ICT officers (for auto-assignment)
-export const ICT_OFFICERS = [
-  { id: "1", name: "Kigen Meshack", speciality: ["Hardware", "Printer"] },
-  { id: "2", name: "David Kariuki", speciality: ["Network", "Software"] },
-  {
-    id: "3",
-    name: "Amina Hassan",
-    speciality: ["Access & Accounts", "Software"],
-  },
-];
-
 export const DEPARTMENTS = [
   "ICT",
   "Legal",
@@ -142,12 +131,6 @@ export const DEPARTMENTS = [
   "Procurement",
   "Executive",
 ];
-
-// Auto-assignment logic (mock — backend owns this in Phase 3)
-export function autoAssign(category: TicketCategory): string | null {
-  const officer = ICT_OFFICERS.find((o) => o.speciality.includes(category));
-  return officer ? officer.name : null;
-}
 
 // Ticket ID generator (mock)
 export function generateTicketId(): string {

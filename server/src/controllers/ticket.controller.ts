@@ -7,6 +7,8 @@ import {
   resolveTicket,
 } from "../services/ticket.service.js";
 import type { CreateTicketBody } from "../types/ticket.types.js";
+import { prisma } from "../prisma.js";
+import { sendTicketAcknowledgementEmail } from "../services/emailService.js";
 
 export const createTicketHandler = async (
   req: AuthRequest<CreateTicketBody>,
@@ -25,6 +27,23 @@ export const createTicketHandler = async (
   }
 
   const ticket = await createTicket(req.body, requesterId);
+
+  const requester = await prisma.user.findUnique({
+    where: { id: requesterId },
+    select: { email: true, fullName: true },
+  });
+
+  if (requester?.email) {
+    await sendTicketAcknowledgementEmail({
+      to: requester.email,
+      name: requester.fullName,
+      ticketId: ticket.id,
+      issue: ticket.issue,
+      department: ticket.department,
+      assignedTo: ticket.assignedTo,
+    });
+  }
+
   return res.status(201).json({ id: ticket.id });
 };
 

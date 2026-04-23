@@ -13,6 +13,13 @@ function toRoleLabel(role: string): string {
   return "End User";
 }
 
+function isAdminRole(role: string): boolean {
+  return (
+    String(role || "")
+      .trim()
+      .toUpperCase() === "ICT_ADMIN"
+  );
+}
 export const login = async (req: Request, res: Response) => {
   try {
     const { identifier, email, password } = req.body;
@@ -437,7 +444,7 @@ export const resetPasswordWithToken = async (req: Request, res: Response) => {
 export const getAllUsers = async (req: AuthRequest, res: Response) => {
   try {
     // Only ICT_ADMIN can view all users
-    if (req.user?.role !== "ICT_ADMIN") {
+    if (!isAdminRole(String(req.user?.role || ""))) {
       return res
         .status(403)
         .json({ message: "Unauthorized. Admin access required." });
@@ -471,10 +478,49 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getSupportStaff = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const supportStaff = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        role: {
+          in: ["ICT_ADMIN", "ICT_OFFICER"],
+        },
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        department: { select: { name: true } },
+      },
+      orderBy: [{ role: "asc" }, { fullName: "asc" }],
+    });
+
+    return res.status(200).json({
+      totalCount: supportStaff.length,
+      supportStaff: supportStaff.map((user) => ({
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        role: toRoleLabel(user.role),
+        department: user.department.name,
+      })),
+    });
+  } catch (error) {
+    console.error("GET SUPPORT STAFF ERROR:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 export const updateUserRole = async (req: AuthRequest, res: Response) => {
   try {
     // Only ICT_ADMIN can update roles
-    if (req.user?.role !== "ICT_ADMIN") {
+    if (!isAdminRole(String(req.user?.role || ""))) {
       return res
         .status(403)
         .json({ message: "Unauthorized. Admin access required." });
@@ -531,7 +577,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
 
 export const removeUserAccount = async (req: AuthRequest, res: Response) => {
   try {
-    if (req.user?.role !== "ICT_ADMIN") {
+    if (!isAdminRole(String(req.user?.role || ""))) {
       return res
         .status(403)
         .json({ message: "Unauthorized. Admin access required." });

@@ -89,6 +89,15 @@ interface AccessRejectedEmail {
   reason?: string;
 }
 
+interface TicketAcknowledgementEmail {
+  to: string;
+  name: string;
+  ticketId: string;
+  issue: string;
+  department: string;
+  assignedTo: string;
+}
+
 export const sendAccessEmail = async ({
   to,
   name,
@@ -224,5 +233,37 @@ export const sendAccessRejectedEmail = async ({
     console.log("Access rejection email sent:", info.response);
   } catch (error) {
     console.error("Error sending access rejection email:", error);
+  }
+};
+
+export const sendTicketAcknowledgementEmail = async ({
+  to,
+  name,
+  ticketId,
+  issue,
+  department,
+  assignedTo,
+}: TicketAcknowledgementEmail) => {
+  try {
+    const transporter = createTransporter();
+    const fromAddress = resolveSmtpUser();
+
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to,
+      subject: `Ticket ${ticketId} received`,
+      html: `<h2>Hello ${name}</h2>
+             <p>Your ticket has been received by the ICT support team.</p>
+             <p>An ICT Officer or ICT Administrator will review the issue and attend to you.</p>
+             <p><b>Ticket ID:</b> ${ticketId}</p>
+             <p><b>Issue:</b> ${issue}</p>
+             <p><b>Department:</b> ${department}</p>
+             <p><b>Assigned To:</b> ${assignedTo}</p>
+             <p>You can keep using the system while the issue is being handled.</p>`,
+    });
+
+    console.log("Ticket acknowledgment email sent:", info.response);
+  } catch (error) {
+    console.error("Error sending ticket acknowledgement email:", error);
   }
 };

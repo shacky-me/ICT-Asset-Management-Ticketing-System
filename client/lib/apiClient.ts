@@ -529,12 +529,29 @@ export type ApiSystemUser = {
   createdAt: string;
 };
 
+export type ApiSupportStaff = {
+  id: number;
+  fullName: string;
+  email: string;
+  role: string;
+  department: string;
+};
+
 export async function getAllUsers(): Promise<{
   totalCount: number;
   users: ApiSystemUser[];
 }> {
   return apiRequest<{ totalCount: number; users: ApiSystemUser[] }>(
     "/auth/users",
+  );
+}
+
+export async function getSupportStaff(): Promise<{
+  totalCount: number;
+  supportStaff: ApiSupportStaff[];
+}> {
+  return apiRequest<{ totalCount: number; supportStaff: ApiSupportStaff[] }>(
+    "/auth/support-staff",
   );
 }
 

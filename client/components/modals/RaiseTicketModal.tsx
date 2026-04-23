@@ -10,11 +10,13 @@ import {
   CATEGORY_META,
   MOCK_ASSETS,
   DEPARTMENTS,
-  autoAssign,
 } from "@/types/ticket";
-import { createTicket } from "@/lib/apiClient";
+import {
+  createTicket,
+  getSupportStaff,
+  type ApiSupportStaff,
+} from "@/lib/apiClient";
 import { addNotification } from "@/lib/notifications";
-import { readCurrentUser } from "@/lib/session";
 
 interface Props {
   isOpen: boolean;
@@ -28,6 +30,7 @@ interface FormErrors {
   category?: string;
   priority?: string;
   department?: string;
+  assignee?: string;
 }
 
 function validate(form: NewTicketFormData): FormErrors {
@@ -75,6 +78,9 @@ export default function RaiseTicketModal({
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedId, setGeneratedId] = useState("");
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
+  const [supportStaff, setSupportStaff] = useState<ApiSupportStaff[]>([]);
+  const [supportStaffLoading, setSupportStaffLoading] = useState(false);
+  const [supportStaffError, setSupportStaffError] = useState("");
   const [assetSearch, setAssetSearch] = useState("");
   const [assetDropOpen, setAssetDropOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -102,6 +108,7 @@ export default function RaiseTicketModal({
     setIsSuccess(false);
     setIsSubmitting(false);
     setAssignedTo(null);
+    setSupportStaffError("");
     setTimeout(() => firstFieldRef.current?.focus(), 120);
   }, [isOpen, prefilledAssetTag]);
 
@@ -113,12 +120,50 @@ export default function RaiseTicketModal({
     };
   }, [isOpen]);
 
-  // Auto-assign on category change
   useEffect(() => {
-    setAssignedTo(
-      form.category ? autoAssign(form.category as TicketCategory) : null,
-    );
-  }, [form.category]);
+    if (!isOpen) return;
+
+    let cancelled = false;
+
+    const loadSupportStaff = async () => {
+      setSupportStaffLoading(true);
+      setSupportStaffError("");
+
+      try {
+        const response = await getSupportStaff();
+        if (cancelled) return;
+
+        setSupportStaff(response.supportStaff);
+        setAssignedTo((current) => {
+          if (
+            current &&
+            response.supportStaff.some((staff) => staff.fullName === current)
+          ) {
+            return current;
+          }
+          return response.supportStaff[0]?.fullName ?? null;
+        });
+      } catch {
+        if (!cancelled) {
+          setSupportStaff([]);
+          setAssignedTo(null);
+          setSupportStaffError(
+            "Unable to load ICT officers and administrators right now.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setSupportStaffLoading(false);
+        }
+      }
+    };
+
+    loadSupportStaff();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   const update = useCallback(
     (
@@ -174,15 +219,21 @@ export default function RaiseTicketModal({
       setErrors(ve);
       return;
     }
+    if (!assignedTo) {
+      setErrors((current) => ({
+        ...current,
+        assignee: "Select an ICT officer or ICT administrator.",
+      }));
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const currentUser = readCurrentUser();
       const response = await createTicket({ ...form, assignedTo });
       setGeneratedId(response.id);
 
       addNotification({
         title: "Ticket raised",
-        message: `${response.id} submitted by ${currentUser?.name || "current user"}.`,
+        message: `${response.id} submitted successfully.`,
         type: "ticket",
       });
 
@@ -637,6 +688,44 @@ export default function RaiseTicketModal({
                 </div>
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Assign To <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className={baseInput(!!errors.assignee)}
+                  value={assignedTo ?? ""}
+                  onChange={(event) => {
+                    setAssignedTo(event.target.value || null);
+                    setErrors((current) => ({
+                      ...current,
+                      assignee: undefined,
+                    }));
+                  }}
+                  disabled={supportStaffLoading || supportStaff.length === 0}
+                >
+                  <option value="">
+                    {supportStaffLoading
+                      ? "Loading ICT staff..."
+                      : "Select ICT officer or administrator"}
+                  </option>
+                  {supportStaff.map((staff) => (
+                    <option key={staff.id} value={staff.fullName}>
+                      {staff.fullName} - {staff.role}
+                    </option>
+                  ))}
+                </select>
+                {supportStaffError ? (
+                  <p className="text-[11px] text-amber-600 font-medium">
+                    {supportStaffError}
+                  </p>
+                ) : errors.assignee ? (
+                  <span className="text-[11px] text-red-500 font-medium">
+                    {errors.assignee}
+                  </span>
+                ) : null}
+              </div>
+
               {/* Affected Asset */}
               <div className="space-y-1.5 relative">
                 <label className="text-xs font-semibold text-slate-700 flex items-center gap-2">
@@ -876,7 +965,7 @@ export default function RaiseTicketModal({
                 )}
               </div>
 
-              {/* Auto-assignment banner */}
+              {/* Assignment banner */}
               <div
                 className={[
                   "flex items-start gap-2.5 px-3.5 py-3 rounded-xl text-xs border",
@@ -902,8 +991,8 @@ export default function RaiseTicketModal({
                       <circle cx="12" cy="7" r="4" strokeWidth="1.8" />
                     </svg>
                     <span>
-                      This ticket will be <b>auto-assigned</b> to{" "}
-                      <b>{assignedTo}</b> based on the selected category.
+                      This ticket will be assigned to <b>{assignedTo}</b> from
+                      the current ICT support staff list.
                     </span>
                   </>
                 ) : (
@@ -924,9 +1013,9 @@ export default function RaiseTicketModal({
                       />
                     </svg>
                     <span>
-                      {form.category
-                        ? "This ticket will be unassigned — ICT will allocate it."
-                        : "Select a category to see who this will be assigned to."}
+                      {supportStaffLoading
+                        ? "Loading ICT support staff..."
+                        : "Select an ICT officer or ICT administrator to assign this ticket."}
                     </span>
                   </>
                 )}

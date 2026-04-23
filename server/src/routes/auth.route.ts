@@ -7,6 +7,7 @@ import {
   me,
   resetPasswordWithToken,
   getAllUsers,
+  getSupportStaff,
   updateUserRole,
   removeUserAccount,
 } from "../controllers/login.controller.js";
@@ -25,6 +26,7 @@ router.post(
   changeTemporaryPassword,
 );
 router.get("/auth/users", authenticateToken, getAllUsers);
+router.get("/auth/support-staff", authenticateToken, getSupportStaff);
 router.patch("/auth/users/:userId/role", authenticateToken, updateUserRole);
 router.delete("/auth/users/:userId", authenticateToken, removeUserAccount);
 

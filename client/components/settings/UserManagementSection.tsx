@@ -16,6 +16,7 @@ import {
   type ApiSystemUser,
 } from "@/lib/apiClient";
 import { useCurrentUser } from "@/lib/session";
+import { normalizeRole } from "@/lib/rbac";
 import { Shield, User } from "lucide-react";
 
 type RoleCode = "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN";
@@ -70,7 +71,7 @@ const UserManagementSection = () => {
   const pageSize = 5;
   const usersPageSize = 5;
 
-  const isAdmin = currentUser?.role === "ICT Administrator";
+  const isAdmin = normalizeRole(currentUser?.role) === "ict_admin";
 
   useEffect(() => {
     let cancelled = false;
