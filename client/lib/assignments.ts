@@ -7,6 +7,7 @@ import {
   getAssignmentStats,
   type ApiAssignment,
 } from "@/lib/apiClient";
+import { ASSIGNMENTS_CHANGED_EVENT } from "@/lib/assignmentEvents";
 
 export type AssignmentStatus = "Assigned" | "Returned" | "Overdue";
 
@@ -77,8 +78,24 @@ export function useAssignments() {
 
     loadAssignments();
 
+    const handleAssignmentsChanged = () => {
+      loadAssignments();
+    };
+
+    window.addEventListener(
+      ASSIGNMENTS_CHANGED_EVENT,
+      handleAssignmentsChanged,
+    );
+
+    const intervalId = window.setInterval(loadAssignments, 60000);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(
+        ASSIGNMENTS_CHANGED_EVENT,
+        handleAssignmentsChanged,
+      );
+      window.clearInterval(intervalId);
     };
   }, []);
 

@@ -40,6 +40,20 @@ function normalizeRole(role: string) {
     .replace(/\s+/g, "_");
 }
 
+const allowedStatusTransitions: Record<TicketStatus, TicketStatus[]> = {
+  Open: ["In Progress", "Pending", "Resolved"],
+  "In Progress": ["Pending", "Resolved"],
+  Pending: ["In Progress", "Resolved"],
+  Resolved: [],
+};
+
+function canTransitionTicketStatus(
+  currentStatus: TicketStatus,
+  nextStatus: TicketStatus,
+) {
+  return allowedStatusTransitions[currentStatus].includes(nextStatus);
+}
+
 let ticketTableEnsured = false;
 
 async function ensureTicketTable() {
@@ -106,6 +120,69 @@ export const createTicket = async (
 
   return mapRowToTicket(created);
 };
+
+export const updateTicketStatus = (
+  ticketId: string,
+  nextStatus: TicketStatus,
+  requesterId: number,
+  requesterRole: string,
+): Promise<
+  | { ok: true; ticket: TicketRecord }
+  | { ok: false; reason: "not_found" | "forbidden" | "invalid_transition" }
+> =>
+  (async () => {
+    await ensureTicketTable();
+
+    const normalizedRole = normalizeRole(requesterRole);
+    const rows = await prisma.$queryRawUnsafe<TicketRow[]>(
+      `
+        SELECT id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id
+        FROM "Ticket"
+        WHERE id = $1
+        LIMIT 1;
+      `,
+      ticketId,
+    );
+
+    const target = rows[0];
+    if (!target) {
+      return { ok: false, reason: "not_found" };
+    }
+
+    const canManageTicket =
+      normalizedRole === "ICT_ADMIN" || normalizedRole === "ICT_OFFICER";
+
+    if (!canManageTicket) {
+      return { ok: false, reason: "forbidden" };
+    }
+
+    const currentStatus = target.status as TicketStatus;
+    if (currentStatus === nextStatus) {
+      return { ok: true, ticket: mapRowToTicket(target) };
+    }
+
+    if (!canTransitionTicketStatus(currentStatus, nextStatus)) {
+      return { ok: false, reason: "invalid_transition" };
+    }
+
+    const updatedRows = await prisma.$queryRawUnsafe<TicketRow[]>(
+      `
+        UPDATE "Ticket"
+        SET status = $2
+        WHERE id = $1
+        RETURNING id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id;
+      `,
+      ticketId,
+      nextStatus,
+    );
+
+    const updated = updatedRows[0];
+    if (!updated) {
+      return { ok: false, reason: "not_found" };
+    }
+
+    return { ok: true, ticket: mapRowToTicket(updated) };
+  })();
 
 export const listTickets = async (filters?: {
   status?: string;
@@ -182,49 +259,16 @@ export const resolveTicket = (
   requesterRole: string,
 ): Promise<
   | { ok: true; ticket: TicketRecord }
-  | { ok: false; reason: "not_found" | "forbidden" }
+  | { ok: false; reason: "not_found" | "forbidden" | "invalid_transition" }
 > =>
   (async () => {
     await ensureTicketTable();
 
-    const normalizedRole = normalizeRole(requesterRole);
-    const rows = await prisma.$queryRawUnsafe<TicketRow[]>(
-      `
-        SELECT id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id
-        FROM "Ticket"
-        WHERE id = $1
-        LIMIT 1;
-      `,
+    const result = await updateTicketStatus(
       ticketId,
+      "Resolved",
+      requesterId,
+      requesterRole,
     );
-
-    const target = rows[0];
-
-    if (!target) {
-      return { ok: false, reason: "not_found" };
-    }
-
-    const canResolve =
-      normalizedRole === "ICT_ADMIN" || normalizedRole === "ICT_OFFICER";
-
-    if (!canResolve) {
-      return { ok: false, reason: "forbidden" };
-    }
-
-    const updatedRows = await prisma.$queryRawUnsafe<TicketRow[]>(
-      `
-        UPDATE "Ticket"
-        SET status = 'Resolved'
-        WHERE id = $1
-        RETURNING id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id;
-      `,
-      ticketId,
-    );
-
-    const updated = updatedRows[0];
-    if (!updated) {
-      return { ok: false, reason: "not_found" };
-    }
-
-    return { ok: true, ticket: mapRowToTicket(updated) };
+    return result;
   })();

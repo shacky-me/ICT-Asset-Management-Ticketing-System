@@ -15,7 +15,9 @@ export type AssetRow = {
   serial: string;
   status: "Assigned" | "In Store" | "Maintenance" | "Flagged";
   department: string;
+  departmentId?: number;
   warranty: string;
+  assignedTo?: string;
   createdAt: string;
 };
 
@@ -27,12 +29,14 @@ export type AssetStats = {
 };
 
 function mapAssetStatus(raw: string): AssetRow["status"] {
-  const value = (raw || "").toLowerCase();
+  const value = (raw || "").toLowerCase().trim();
   if (value === "assigned") return "Assigned";
   if (value === "available") return "In Store";
   if (value === "instore" || value === "in store") return "In Store";
   if (value === "maintenance") return "Maintenance";
   if (value === "flagged") return "Flagged";
+  // If no status, default to In Store
+  if (!value) return "In Store";
   return "Flagged";
 }
 
@@ -62,7 +66,9 @@ function mapAsset(input: ApiAsset): AssetRow {
     serial: input.serialNumber,
     status: mapAssetStatus(input.status),
     department: input.department?.name || "Unassigned",
+    departmentId: input.department?.id,
     warranty: mapWarranty(input),
+    assignedTo: input.assignment?.[0]?.assignedTo || undefined,
     createdAt: input.createdAt,
   };
 }

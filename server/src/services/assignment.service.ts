@@ -16,8 +16,13 @@ export const createAssignment = async (data: any, issuerId: number) => {
 
   return await prisma.$transaction(async (tx) => {
     const year = new Date().getFullYear();
-    const count = await tx.assetAssignment.count();
-    const refNo = `ASSGN-${year}-${(count + 1).toString().padStart(3, "0")}`;
+    // Generate a unique reference number using timestamp and random component
+    // to avoid collisions from deleted records or race conditions
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0");
+    const refNo = `ASSGN-${year}-${timestamp}${random}`;
 
     const assignment = await tx.assetAssignment.create({
       data: {
@@ -104,6 +109,77 @@ export const updateAssignment = async (id: number, data: any) => {
       department: { select: { name: true } },
     },
   });
+};
+
+export const updateAssignmentStatus = async (
+  id: number,
+  newStatus: string,
+  userId: number,
+) => {
+  const validStatuses = ["ACTIVE", "RETURNED", "OVERDUE"];
+  if (!validStatuses.includes(newStatus.toUpperCase())) {
+    throw new Error(
+      `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+    );
+  }
+
+  const assignment = await prisma.assetAssignment.findUnique({
+    where: { id },
+  });
+
+  if (!assignment) {
+    throw new Error("Assignment not found");
+  }
+
+  const upperStatus = newStatus.toUpperCase();
+  if (assignment.status === upperStatus) {
+    throw new Error(`Assignment is already in ${upperStatus} status`);
+  }
+
+  const oldStatus = assignment.status;
+
+  const updateData: any = {
+    status: upperStatus,
+  };
+
+  // If returning, set returnedAt to now
+  if (upperStatus === "RETURNED") {
+    updateData.returnedAt = new Date();
+    updateData.isOverdue = false;
+  }
+
+  // If marking as overdue, set isOverdue flag
+  if (upperStatus === "OVERDUE") {
+    updateData.isOverdue = true;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Update assignment status
+    await tx.assetAssignment.update({
+      where: { id },
+      data: updateData,
+    });
+
+    // If returning, update asset status back to Available
+    if (upperStatus === "RETURNED") {
+      await tx.asset.update({
+        where: { id: assignment.assetId },
+        data: { status: "Available" },
+      });
+    }
+
+    // Log the status change
+    await tx.activityLog.create({
+      data: {
+        assetId: assignment.assetId,
+        type: "ASSIGNMENT",
+        message: `Assignment status changed from ${oldStatus} to ${upperStatus}`,
+        userId,
+      },
+    });
+  });
+
+  return { id, oldStatus, newStatus: upperStatus };
 };
 
 export const deleteAssignment = async (id: number, userId: number) => {

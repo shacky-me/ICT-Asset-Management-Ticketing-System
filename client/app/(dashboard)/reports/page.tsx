@@ -9,79 +9,96 @@ import { useTickets } from "@/lib/tickets";
 import { useDashboardSearch } from "@/lib/dashboardSearch";
 import { useMemo, useState } from "react";
 
-const reports = [
-  {
-    title: "Full Asset Register",
-    description: "Complete list of all 1000 assets with all fields",
-    formats: ["PDF", "CSV"],
-    icon: "chart",
-    color: "text-blue-500",
-    bg: "bg-blue-50",
-  },
-  {
-    title: "Assignment History",
-    description: "All active and historical asset assignments",
-    formats: ["PDF", "CSV"],
-    icon: "users",
-    color: "text-green-500",
-    bg: "bg-green-50",
-  },
-  {
-    title: "Assets by Status",
-    description: "Assigned, In Store, Maintenance, Flagged breakdown",
-    formats: ["PDF", "CSV"],
-    icon: "chart",
-    color: "text-purple-500",
-    bg: "bg-purple-50",
-  },
-  {
-    title: "Ticket Summary Report",
-    description: "All tickets by status, priority, and department",
-    formats: ["PDF", "CSV"],
-    icon: "ticket",
-    color: "text-orange-500",
-    bg: "bg-orange-50",
-  },
-  {
-    title: "Warranty Expiry Report",
-    description: "19 assets with warranties expiring in 30 days",
-    formats: ["PDF"],
-    icon: "warning",
-    color: "text-red-500",
-    bg: "bg-red-50",
-  },
-  {
-    title: "Unassigned Assets",
-    description: "287 assets in store and available for deployment",
-    formats: ["PDF", "CSV"],
-    icon: "store",
-    color: "text-teal-500",
-    bg: "bg-teal-50",
-  },
-  {
-    title: "Depreciation Summary",
-    description: "Asset value and depreciation schedule by category",
-    formats: ["PDF", "CSV"],
-    icon: "chart",
-    color: "text-indigo-500",
-    bg: "bg-indigo-50",
-  },
-  {
-    title: "Lost/Stolen Assets",
-    description: "8 flagged assets with incident reference numbers",
-    formats: ["PDF", "CSV"],
-    icon: "warning",
-    color: "text-red-500",
-    bg: "bg-red-50",
-  },
-];
-
 const ReportsPage = () => {
   const [exporting, setExporting] = useState<string | null>(null);
   const { items: assignments } = useAssignments();
-  const { assets: assetRecords } = useAssets();
+  const { assets: assetRecords, stats: assetStats } = useAssets();
   const { stats: ticketStats } = useTickets();
   const query = useDashboardSearch().trim().toLowerCase();
+
+  const reports = useMemo(() => {
+    const expiredWarranties = assetRecords.filter(
+      (item) => item.warranty === "Expired",
+    ).length;
+    const flaggedAssets = assetRecords.filter(
+      (item) => item.status === "Flagged",
+    ).length;
+    const inStoreAssets = assetRecords.filter(
+      (item) => item.status === "In Store",
+    ).length;
+    const totalTickets =
+      ticketStats.open +
+      ticketStats.inProgress +
+      ticketStats.pending +
+      ticketStats.resolved;
+
+    return [
+      {
+        title: "Full Asset Register",
+        description: `Complete list of all ${assetStats.total} assets with all fields`,
+        formats: ["PDF", "CSV"],
+        icon: "chart",
+        color: "text-blue-500",
+        bg: "bg-blue-50",
+      },
+      {
+        title: "Assignment History",
+        description: `All ${assignments.length} active and historical asset assignments`,
+        formats: ["PDF", "CSV"],
+        icon: "users",
+        color: "text-green-500",
+        bg: "bg-green-50",
+      },
+      {
+        title: "Assets by Status",
+        description: `Assigned ${assetStats.assigned}, In Store ${assetStats.inStore}, Maintenance ${assetStats.maintenance}, Flagged ${assetRecords.filter((item) => item.status === "Flagged").length} breakdown`,
+        formats: ["PDF", "CSV"],
+        icon: "chart",
+        color: "text-purple-500",
+        bg: "bg-purple-50",
+      },
+      {
+        title: "Ticket Summary Report",
+        description: `All ${totalTickets} tickets by status, priority, and department`,
+        formats: ["PDF", "CSV"],
+        icon: "ticket",
+        color: "text-orange-500",
+        bg: "bg-orange-50",
+      },
+      {
+        title: "Warranty Expiry Report",
+        description: `${expiredWarranties} assets with expired warranties`,
+        formats: ["PDF"],
+        icon: "warning",
+        color: "text-red-500",
+        bg: "bg-red-50",
+      },
+      {
+        title: "Unassigned Assets",
+        description: `${inStoreAssets} assets in store and available for deployment`,
+        formats: ["PDF", "CSV"],
+        icon: "store",
+        color: "text-teal-500",
+        bg: "bg-teal-50",
+      },
+      {
+        title: "Depreciation Summary",
+        description: "Asset value and depreciation schedule by category",
+        formats: ["PDF", "CSV"],
+        icon: "chart",
+        color: "text-indigo-500",
+        bg: "bg-indigo-50",
+      },
+      {
+        title: "Lost/Stolen Assets",
+        description: `${flaggedAssets} flagged assets with incident reference numbers`,
+        formats: ["PDF", "CSV"],
+        icon: "warning",
+        color: "text-red-500",
+        bg: "bg-red-50",
+      },
+    ];
+  }, [assetRecords, assetStats, assignments.length, ticketStats]);
 
   const filteredReports = useMemo(() => {
     if (!query) return reports;
@@ -90,7 +107,7 @@ const ReportsPage = () => {
         report.title.toLowerCase().includes(query) ||
         report.description.toLowerCase().includes(query),
     );
-  }, [query]);
+  }, [query, reports]);
 
   const handleExport = (title: string, format: "PDF" | "CSV") => {
     setExporting(`${title}:${format}`);
@@ -162,8 +179,7 @@ const ReportsPage = () => {
         { Type: "Resolved", Count: ticketStats.resolved },
       ],
       "Warranty Expiry Report": assetRows.filter(
-        (item) =>
-          item.Warranty !== "Unknown" && Date.parse(item.Warranty) < Date.now(),
+        (item) => item.Warranty === "Expired",
       ),
       "Unassigned Assets": assetRows.filter(
         (item) => item.Status === "In Store",

@@ -1,5 +1,12 @@
+import { useEffect, useMemo, useState } from "react";
+
 type Priority = "Critical" | "High" | "Medium" | "Low";
 type TicketStatus = "Open" | "In Progress" | "Pending" | "Resolved";
+
+type TicketStatusAction = {
+  label: string;
+  status: TicketStatus;
+};
 
 type Ticket = {
   id: string;
@@ -26,23 +33,79 @@ const statusStyles: Record<TicketStatus, string> = {
   Resolved: "bg-green-50 text-green-600 border border-green-200",
 };
 
+const statusActions: Record<TicketStatus, TicketStatusAction[]> = {
+  Open: [
+    { label: "Start", status: "In Progress" },
+    { label: "Pending", status: "Pending" },
+    { label: "Resolve", status: "Resolved" },
+  ],
+  "In Progress": [
+    { label: "Pending", status: "Pending" },
+    { label: "Resolve", status: "Resolved" },
+  ],
+  Pending: [
+    { label: "Resume", status: "In Progress" },
+    { label: "Resolve", status: "Resolved" },
+  ],
+  Resolved: [],
+};
+
+const PAGE_SIZE = 5;
+
+function getPageItems(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  if (currentPage <= 4) {
+    return [1, 2, 3, 4, 5, "...", totalPages];
+  }
+
+  if (currentPage >= totalPages - 3) {
+    return [
+      1,
+      "...",
+      totalPages - 4,
+      totalPages - 3,
+      totalPages - 2,
+      totalPages - 1,
+      totalPages,
+    ];
+  }
+
+  return [
+    1,
+    "...",
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+    "...",
+    totalPages,
+  ];
+}
+
 interface Props {
   tickets: Ticket[];
   activeTab: string;
   search?: string;
-  onResolveTicket?: (ticketId: string) => Promise<void> | void;
-  resolvingTicketId?: string | null;
-  canResolveTicket?: boolean;
+  onUpdateTicketStatus?: (
+    ticketId: string,
+    status: TicketStatus,
+  ) => Promise<void> | void;
+  updatingTicketId?: string | null;
+  canManageTicket?: boolean;
 }
 
 const TicketTable = ({
   tickets,
   activeTab,
   search = "",
-  onResolveTicket,
-  resolvingTicketId,
-  canResolveTicket = false,
+  onUpdateTicketStatus,
+  updatingTicketId,
+  canManageTicket = false,
 }: Props) => {
+  const [currentPage, setCurrentPage] = useState(1);
+
   const tabFiltered =
     activeTab === "All"
       ? tickets
@@ -68,7 +131,26 @@ const TicketTable = ({
             .includes(normalizedQuery),
         );
 
-  const showPagination = activeTab !== "All";
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const pageItems = useMemo(
+    () => getPageItems(effectivePage, totalPages),
+    [effectivePage, totalPages],
+  );
+  const visibleRows = useMemo(() => {
+    const start = (effectivePage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [effectivePage, filtered]);
+
+  const startRow =
+    filtered.length === 0 ? 0 : (effectivePage - 1) * PAGE_SIZE + 1;
+  const endRow = Math.min(effectivePage * PAGE_SIZE, filtered.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, search, tickets.length]);
+
+  const showPagination = filtered.length > PAGE_SIZE;
 
   return (
     <div className="overflow-x-auto">
@@ -105,7 +187,7 @@ const TicketTable = ({
           </tr>
         </thead>
         <tbody>
-          {filtered.map((t) => (
+          {visibleRows.map((t) => (
             <tr
               key={t.id}
               className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
@@ -147,16 +229,23 @@ const TicketTable = ({
                   <span className="text-xs text-green-600 font-semibold">
                     Resolved
                   </span>
-                ) : !canResolveTicket ? (
+                ) : !canManageTicket ? (
                   <span className="text-xs text-gray-400 font-medium">-</span>
                 ) : (
-                  <button
-                    onClick={() => onResolveTicket?.(t.id)}
-                    disabled={Boolean(resolvingTicketId === t.id)}
-                    className="text-xs text-[#235FE7] font-semibold hover:underline disabled:opacity-40 disabled:no-underline"
-                  >
-                    {resolvingTicketId === t.id ? "Resolving..." : "Resolve"}
-                  </button>
+                  <div className="flex flex-wrap gap-1.5">
+                    {statusActions[t.status].map((action) => (
+                      <button
+                        key={action.status}
+                        onClick={() =>
+                          onUpdateTicketStatus?.(t.id, action.status)
+                        }
+                        disabled={Boolean(updatingTicketId === t.id)}
+                        className="text-xs text-[#235FE7] font-semibold hover:underline disabled:opacity-40 disabled:no-underline"
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </td>
             </tr>
@@ -164,31 +253,58 @@ const TicketTable = ({
         </tbody>
       </table>
 
-      {/* Pagination — only on filtered tabs */}
+      {/* Pagination */}
       {showPagination && (
         <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100">
           <p className="text-xs text-[#235FE7] font-medium">
-            Showing {filtered.length} of {filtered.length} tickets
+            Showing {startRow}-{endRow} of {filtered.length} tickets
           </p>
           <div className="flex items-center gap-1">
-            <button className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={effectivePage === 1}
+              className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm disabled:opacity-40"
+            >
               ‹
             </button>
-            {[1, 2, 3, "...", 10].map((p, i) => (
-              <button
-                key={i}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg text-xs font-medium ${
-                  p === 1
-                    ? "bg-[#235FE7] text-white"
-                    : "hover:bg-gray-100 text-gray-600"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-            <button className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm">
+            <span className="text-xs text-gray-500 px-2">
+              Page {effectivePage} of {totalPages}
+            </span>
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
+              disabled={effectivePage === totalPages}
+              className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm disabled:opacity-40"
+            >
               ›
             </button>
+            {pageItems.map((item, index) =>
+              item === "..." ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="h-8 w-8 flex items-center justify-center text-xs text-gray-400"
+                >
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  onClick={() => {
+                    if (typeof item === "number") {
+                      setCurrentPage(item as number);
+                    }
+                  }}
+                  className={`h-8 w-8 flex items-center justify-center rounded-lg text-xs font-medium ${
+                    item === effectivePage
+                      ? "bg-[#235FE7] text-white"
+                      : "hover:bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {item}
+                </button>
+              ),
+            )}
           </div>
         </div>
       )}

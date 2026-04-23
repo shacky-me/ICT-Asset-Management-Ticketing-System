@@ -129,10 +129,12 @@ const AssignmentsPage = () => {
         overdue={stats.overdue}
         assignedThisMonth={assignmentThisMonth}
       />
-      <AssignmentAlert
-        overdueCount={stats.overdue}
-        onViewOverdue={() => setActiveTab("Overdue")}
-      />
+      {stats.overdue > 0 && (
+        <AssignmentAlert
+          overdueCount={stats.overdue}
+          onViewOverdue={() => setActiveTab("Overdue")}
+        />
+      )}
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <AssignmentFilterTabs

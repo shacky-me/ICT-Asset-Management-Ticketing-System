@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RaiseTicketModal from "../modals/RaiseTicketModal";
 import type { ApiTicket } from "@/lib/apiClient";
 
@@ -26,6 +26,8 @@ const statusStyles: Record<Status, string> = {
   Resolved: "bg-green-50 text-green-600 border border-green-200",
 };
 
+const PAGE_SIZE = 5;
+
 const OpenTicketsTable = ({
   search = "",
   tickets,
@@ -34,11 +36,16 @@ const OpenTicketsTable = ({
   tickets: Ticket[];
 }) => {
   const [isTicketOpen, setIsTicketOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const activeTickets = useMemo(
+    () => tickets.filter((ticket) => ticket.status !== "Resolved"),
+    [tickets],
+  );
   const filteredTickets = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return tickets;
+    if (!query) return activeTickets;
 
-    return tickets.filter(
+    return activeTickets.filter(
       (ticket) =>
         ticket.id.toLowerCase().includes(query) ||
         ticket.issue.toLowerCase().includes(query) ||
@@ -47,6 +54,21 @@ const OpenTicketsTable = ({
         ticket.status.toLowerCase().includes(query),
     );
   }, [search, tickets]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / PAGE_SIZE));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const visibleRows = useMemo(() => {
+    const start = (effectivePage - 1) * PAGE_SIZE;
+    return filteredTickets.slice(start, start + PAGE_SIZE);
+  }, [effectivePage, filteredTickets]);
+
+  const startRow =
+    filteredTickets.length === 0 ? 0 : (effectivePage - 1) * PAGE_SIZE + 1;
+  const endRow = Math.min(effectivePage * PAGE_SIZE, filteredTickets.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, tickets.length]);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -92,7 +114,7 @@ const OpenTicketsTable = ({
           </tr>
         </thead>
         <tbody>
-          {filteredTickets.map((t) => (
+          {visibleRows.map((t) => (
             <tr
               key={t.id}
               className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
@@ -123,14 +145,35 @@ const OpenTicketsTable = ({
       {/* Footer */}
       <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between">
         <p className="text-xs text-gray-400">
-          Showing {filteredTickets.length} of {tickets.length} tickets
+          Showing {startRow}-{endRow} of {filteredTickets.length} tickets
         </p>
-        <Link
-          href="/tickets"
-          className="text-xs text-[#235FE7] font-semibold hover:underline flex items-center gap-1"
-        >
-          View all tickets →
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={effectivePage === 1}
+            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm disabled:opacity-40"
+          >
+            ‹
+          </button>
+          <span className="text-xs text-gray-500 px-2">
+            Page {effectivePage} of {totalPages}
+          </span>
+          <button
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+            }
+            disabled={effectivePage === totalPages}
+            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm disabled:opacity-40"
+          >
+            ›
+          </button>
+          <Link
+            href="/tickets"
+            className="ml-2 text-xs text-[#235FE7] font-semibold hover:underline flex items-center gap-1"
+          >
+            View all tickets →
+          </Link>
+        </div>
       </div>
     </div>
   );

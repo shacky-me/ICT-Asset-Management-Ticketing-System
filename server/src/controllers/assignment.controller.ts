@@ -66,6 +66,54 @@ export const updateAssignment = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const updateAssignmentStatus = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || typeof status !== "string") {
+      return res.status(400).json({ message: "Status is required" });
+    }
+
+    const assignmentId = Number(id);
+    if (!Number.isFinite(assignmentId) || assignmentId <= 0) {
+      return res.status(400).json({ message: "Invalid assignment ID" });
+    }
+
+    const result = await assignmentService.updateAssignmentStatus(
+      assignmentId,
+      status,
+      req.user.id,
+    );
+
+    return res.status(200).json({
+      message: "Assignment status updated successfully",
+      ...result,
+    });
+  } catch (error: any) {
+    const message = error?.message || "Error updating assignment status";
+
+    if (message === "Assignment not found") {
+      return res.status(404).json({ message });
+    }
+
+    if (message.includes("Invalid status")) {
+      return res.status(400).json({ message });
+    }
+
+    if (message.includes("already in")) {
+      return res.status(400).json({ message });
+    }
+
+    return res.status(400).json({ message });
+  }
+};
+
 export const deleteAssignment = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });

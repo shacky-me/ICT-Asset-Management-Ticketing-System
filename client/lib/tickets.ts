@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getTicketStats,
   getTickets,
-  resolveTicket,
+  updateTicketStatus,
   type ApiTicket,
 } from "@/lib/apiClient";
 
@@ -19,9 +19,7 @@ export type TicketStats = {
 
 export function useTickets() {
   const [tickets, setTickets] = useState<TicketRow[]>([]);
-  const [resolvingTicketId, setResolvingTicketId] = useState<string | null>(
-    null,
-  );
+  const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
   const [stats, setStats] = useState<TicketStats>({
     open: 0,
     inProgress: 0,
@@ -69,10 +67,13 @@ export function useTickets() {
     };
   }, []);
 
-  const resolveTicketById = async (ticketId: string) => {
-    setResolvingTicketId(ticketId);
+  const updateTicketStatusById = async (
+    ticketId: string,
+    status: TicketRow["status"],
+  ) => {
+    setUpdatingTicketId(ticketId);
     try {
-      await resolveTicket(ticketId);
+      await updateTicketStatus(ticketId, status);
 
       const [ticketResponse, statsResponse] = await Promise.all([
         getTickets(),
@@ -82,7 +83,7 @@ export function useTickets() {
       setTickets(ticketResponse.tickets);
       setStats(statsResponse);
     } finally {
-      setResolvingTicketId(null);
+      setUpdatingTicketId(null);
     }
   };
 
@@ -98,7 +99,7 @@ export function useTickets() {
     tickets,
     stats,
     openOrInProgress,
-    resolveTicketById,
-    resolvingTicketId,
+    updateTicketStatusById,
+    updatingTicketId,
   };
 }

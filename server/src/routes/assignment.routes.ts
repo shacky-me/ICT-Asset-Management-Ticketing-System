@@ -7,6 +7,7 @@ const router: Router = Router();
 router.use(authenticateToken);
 
 router.post("/", assignmentCtrl.createAssignment);
+router.patch("/:id/status", assignmentCtrl.updateAssignmentStatus);
 router.put("/:id", assignmentCtrl.updateAssignment);
 router.delete("/:id", assignmentCtrl.deleteAssignment);
 router.get("/stats", assignmentCtrl.getStats);

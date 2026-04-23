@@ -6,6 +6,8 @@ type Props = {
 };
 
 const AssignmentAlert = ({ overdueCount, onViewOverdue }: Props) => {
+  if (overdueCount <= 0) return null;
+
   return (
     <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-5 py-4">
       <div className="flex items-start gap-3">

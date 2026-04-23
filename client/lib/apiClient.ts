@@ -1,5 +1,6 @@
 import { AssetRegistrationFormData } from "@/types/assetRegistration";
 import { NewTicketFormData } from "@/types/ticket";
+import { publishAssignmentsChanged } from "@/lib/assignmentEvents";
 import { readAuthToken } from "@/lib/session";
 
 type ApiUser = {
@@ -32,10 +33,16 @@ function resolveApiBaseUrl(): string {
 
 const API_BASE_URL = resolveApiBaseUrl();
 const TICKETS_CHANGED_EVENT = "ictams:tickets-changed";
+const ASSETS_CHANGED_EVENT = "ictams:assets-changed";
 
 function publishTicketsChanged() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(TICKETS_CHANGED_EVENT));
+}
+
+function publishAssetsChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(ASSETS_CHANGED_EVENT));
 }
 
 type RequestOptions = {
@@ -263,11 +270,12 @@ export type ApiAsset = {
   serialNumber: string;
   status: string;
   createdAt: string;
-  department?: { name: string };
+  department?: { name: string; id: number };
   procurement?: {
     warrantyEnd?: string | null;
     warrantyType?: string | null;
   } | null;
+  assignment?: Array<{ assignedTo: string; refNo: string }>;
 };
 
 export type ApiAssetStats = {
@@ -404,6 +412,26 @@ export async function deleteAsset(
   });
 }
 
+export async function updateAssetStatus(
+  assetId: number,
+  status: "Available" | "Assigned" | "InStore" | "Maintenance" | "Flagged",
+): Promise<{
+  message: string;
+  id: number;
+  oldStatus: string;
+  newStatus: string;
+}> {
+  return apiRequest<{
+    message: string;
+    id: number;
+    oldStatus: string;
+    newStatus: string;
+  }>(`/assets/${assetId}/status`, {
+    method: "PATCH",
+    body: { status },
+  });
+}
+
 export async function getAssignments(params?: {
   status?: string;
   search?: string;
@@ -438,10 +466,17 @@ export async function createAssignment(payload: {
   notes?: string;
   expectedReturnCondition?: string;
 }): Promise<{ assignment: ApiAssignment }> {
-  return apiRequest<{ assignment: ApiAssignment }>("/assignments", {
-    method: "POST",
-    body: payload,
-  });
+  const response = await apiRequest<{ assignment: ApiAssignment }>(
+    "/assignments",
+    {
+      method: "POST",
+      body: payload,
+    },
+  );
+
+  publishAssignmentsChanged();
+  publishAssetsChanged();
+  return response;
 }
 
 export async function updateAssignment(
@@ -457,18 +492,51 @@ export async function updateAssignment(
     expectedReturnCondition: string;
   }>,
 ): Promise<{ assignment: ApiAssignment }> {
-  return apiRequest<{ assignment: ApiAssignment }>(`/assignments/${id}`, {
-    method: "PUT",
-    body: payload,
+  const response = await apiRequest<{ assignment: ApiAssignment }>(
+    `/assignments/${id}`,
+    {
+      method: "PUT",
+      body: payload,
+    },
+  );
+
+  publishAssignmentsChanged();
+  return response;
+}
+
+export async function updateAssignmentStatus(
+  id: number,
+  status: "ACTIVE" | "RETURNED" | "OVERDUE",
+): Promise<{
+  message: string;
+  id: number;
+  oldStatus: string;
+  newStatus: string;
+}> {
+  const response = await apiRequest<{
+    message: string;
+    id: number;
+    oldStatus: string;
+    newStatus: string;
+  }>(`/assignments/${id}/status`, {
+    method: "PATCH",
+    body: { status },
   });
+
+  publishAssignmentsChanged();
+  publishAssetsChanged();
+  return response;
 }
 
 export async function deleteAssignment(
   id: number,
 ): Promise<{ message: string }> {
-  return apiRequest<{ message: string }>(`/assignments/${id}`, {
+  const response = await apiRequest<{ message: string }>(`/assignments/${id}`, {
     method: "DELETE",
   });
+
+  publishAssignmentsChanged();
+  return response;
 }
 
 type CreateTicketResponse = {
@@ -487,6 +555,11 @@ export async function createTicket(
   return response;
 }
 
+type UpdateTicketStatusResponse = {
+  message: string;
+  ticket: ApiTicket;
+};
+
 export async function getTickets(params?: {
   status?: string;
   search?: string;
@@ -503,18 +576,26 @@ export async function getTicketStats(): Promise<ApiTicketStats> {
   return apiRequest<ApiTicketStats>("/tickets/stats");
 }
 
-export async function resolveTicket(
+export async function updateTicketStatus(
   ticketId: string,
-): Promise<{ message: string; ticket: ApiTicket }> {
-  const response = await apiRequest<{ message: string; ticket: ApiTicket }>(
-    `/tickets/${ticketId}/resolve`,
+  status: ApiTicket["status"],
+): Promise<UpdateTicketStatusResponse> {
+  const response = await apiRequest<UpdateTicketStatusResponse>(
+    `/tickets/${ticketId}/status`,
     {
       method: "PATCH",
+      body: { status },
     },
   );
 
   publishTicketsChanged();
   return response;
+}
+
+export async function resolveTicket(
+  ticketId: string,
+): Promise<{ message: string; ticket: ApiTicket }> {
+  return updateTicketStatus(ticketId, "Resolved");
 }
 
 // User Management (Admin only)

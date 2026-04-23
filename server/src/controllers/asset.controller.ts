@@ -66,6 +66,59 @@ export const getAssetById = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (req.user.role !== "ICT_ADMIN" && req.user.role !== "ICT_OFFICER") {
+      return res.status(403).json({
+        message: "Only ICT Admin and ICT Officer can update asset status",
+      });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const assetId = Number(id);
+    if (!Number.isFinite(assetId) || assetId <= 0) {
+      return res.status(400).json({ message: "Invalid asset ID" });
+    }
+
+    if (!status || typeof status !== "string") {
+      return res.status(400).json({ message: "Status is required" });
+    }
+
+    const result = await assetService.updateAssetStatus(
+      assetId,
+      status,
+      req.user.id,
+    );
+
+    return res.status(200).json({
+      message: "Asset status updated successfully",
+      ...result,
+    });
+  } catch (error: any) {
+    const message = error?.message || "Error updating asset status";
+
+    if (message === "Asset not found") {
+      return res.status(404).json({ message });
+    }
+
+    if (message.includes("Invalid status")) {
+      return res.status(400).json({ message });
+    }
+
+    if (message.includes("already in")) {
+      return res.status(400).json({ message });
+    }
+
+    return res.status(400).json({ message });
+  }
+};
+
 export const removeAsset = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {

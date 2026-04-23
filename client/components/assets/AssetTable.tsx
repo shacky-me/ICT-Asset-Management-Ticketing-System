@@ -170,6 +170,7 @@ const AssetTable = ({
               "Model",
               "Serial No.",
               "Status",
+              "Assigned To",
               "Dept.",
               "Warranty",
               "Action",
@@ -222,6 +223,9 @@ const AssetTable = ({
                   </span>
                 </td>
                 <td className="px-3 py-4 text-gray-500 text-xs truncate">
+                  {a.assignedTo || "-"}
+                </td>
+                <td className="px-3 py-4 text-gray-500 text-xs truncate">
                   {a.department}
                 </td>
                 <td
@@ -253,7 +257,7 @@ const AssetTable = ({
           ) : (
             <tr>
               <td
-                colSpan={10}
+                colSpan={11}
                 className="px-4 py-10 text-center text-xs text-gray-400"
               >
                 No assets found for this filter.

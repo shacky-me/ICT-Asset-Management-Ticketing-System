@@ -4,6 +4,7 @@ import {
   createTicketHandler,
   listTicketsHandler,
   resolveTicketHandler,
+  updateTicketStatusHandler,
   ticketStatsHandler,
 } from "../controllers/ticket.controller.js";
 
@@ -13,6 +14,7 @@ router.use(authenticateToken);
 router.get("/", listTicketsHandler);
 router.get("/stats", ticketStatsHandler);
 router.post("/", createTicketHandler);
+router.patch("/:ticketId/status", updateTicketStatusHandler);
 router.patch("/:ticketId/resolve", resolveTicketHandler);
 
 export default router;

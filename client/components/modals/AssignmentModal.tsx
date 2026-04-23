@@ -5,7 +5,13 @@ import { X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { addNotification } from "@/lib/notifications";
 import { useAssets } from "@/lib/assets";
-import { createAssignment, updateAssignment } from "@/lib/apiClient";
+import { publishAssetsChanged } from "@/lib/assets";
+import {
+  createAssignment,
+  updateAssignment,
+  updateAssignmentStatus,
+} from "@/lib/apiClient";
+import { publishAssignmentsChanged } from "@/lib/assignmentEvents";
 import type { AssignmentRecord } from "@/lib/assignments";
 
 interface Props {
@@ -26,6 +32,9 @@ export default function AssignmentModal({
   const [assignedTo, setAssignedTo] = useState("");
   const [payRollNo, setPayRollNo] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+  const [status, setStatus] = useState<"ACTIVE" | "RETURNED" | "OVERDUE">(
+    "ACTIVE",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorText, setErrorText] = useState("");
 
@@ -39,24 +48,35 @@ export default function AssignmentModal({
       setAssignedTo("");
       setPayRollNo("");
       setDepartmentId("");
+      setStatus("ACTIVE");
       setErrorText("");
     } else if (isEditing && editingAssignment) {
       setAssignedTo(editingAssignment.assignedTo);
       setPayRollNo("");
       setDepartmentId("");
+      // Map display status to database status
+      const statusMap: Record<string, "ACTIVE" | "RETURNED" | "OVERDUE"> = {
+        Assigned: "ACTIVE",
+        Returned: "RETURNED",
+        Overdue: "OVERDUE",
+      };
+      setStatus(statusMap[editingAssignment.status] || "ACTIVE");
     }
   }, [isOpen, isEditing, editingAssignment, modalKey]);
 
   const departmentOptions = useMemo(() => {
-    const seen = new Set<string>();
+    const seen = new Set<number>();
     return assets
       .filter((asset) => {
-        const key = asset.department;
-        if (!key || key === "Unassigned" || seen.has(key)) return false;
-        seen.add(key);
+        const deptId = asset.departmentId;
+        if (!deptId || seen.has(deptId)) return false;
+        seen.add(deptId);
         return true;
       })
-      .map((asset) => ({ label: asset.department, value: String(asset.id) }));
+      .map((asset) => ({
+        label: asset.department,
+        value: String(asset.departmentId),
+      }));
   }, [assets]);
 
   const selectedAsset = assets.find(
@@ -82,16 +102,34 @@ export default function AssignmentModal({
 
         await updateAssignment(editingAssignment!.id, payload);
 
+        // Update status if it changed
+        const currentStatus =
+          editingAssignment?.status === "Assigned"
+            ? "ACTIVE"
+            : editingAssignment?.status === "Returned"
+              ? "RETURNED"
+              : "OVERDUE";
+
+        if (status !== currentStatus) {
+          await updateAssignmentStatus(editingAssignment!.id, status);
+        }
+
         addNotification({
           title: "Assignment updated",
           message: `Assignment updated successfully.`,
           type: "asset",
         });
 
+        publishAssignmentsChanged();
+        publishAssetsChanged();
         onRefresh?.();
         onClose();
-      } catch {
-        setErrorText("Unable to update assignment right now.");
+      } catch (error) {
+        setErrorText(
+          error instanceof Error
+            ? error.message
+            : "Unable to update assignment right now.",
+        );
       } finally {
         setIsSubmitting(false);
       }
@@ -122,14 +160,20 @@ export default function AssignmentModal({
           type: "asset",
         });
 
+        publishAssignmentsChanged();
+        publishAssetsChanged();
         onRefresh?.();
         onClose();
         setSelectedAssetId("");
         setAssignedTo("");
         setPayRollNo("");
         setDepartmentId("");
-      } catch {
-        setErrorText("Unable to create assignment right now.");
+      } catch (error) {
+        setErrorText(
+          error instanceof Error
+            ? error.message
+            : "Unable to create assignment right now.",
+        );
       } finally {
         setIsSubmitting(false);
       }
@@ -218,6 +262,25 @@ export default function AssignmentModal({
               ))}
             </select>
           </div>
+
+          {isEditing && (
+            <div>
+              <label className="text-xs text-gray-500">Status</label>
+              <select
+                value={status}
+                onChange={(event) =>
+                  setStatus(
+                    event.target.value as "ACTIVE" | "RETURNED" | "OVERDUE",
+                  )
+                }
+                className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              >
+                <option value="ACTIVE">Assigned</option>
+                <option value="RETURNED">Returned</option>
+                <option value="OVERDUE">Overdue</option>
+              </select>
+            </div>
+          )}
 
           {errorText && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">

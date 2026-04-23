@@ -16,8 +16,9 @@ const TicketsPage = () => {
   const search = useDashboardSearch();
   const currentUser = useCurrentUser();
   const role = normalizeRole(currentUser?.role);
-  const allowResolveTicket = canResolveTickets(role);
-  const { tickets, stats, resolveTicketById, resolvingTicketId } = useTickets();
+  const allowManageTicket = canResolveTickets(role);
+  const { tickets, stats, updateTicketStatusById, updatingTicketId } =
+    useTickets();
 
   return (
     <>
@@ -57,9 +58,9 @@ const TicketsPage = () => {
             activeTab={activeTab}
             search={search}
             tickets={tickets}
-            onResolveTicket={resolveTicketById}
-            resolvingTicketId={resolvingTicketId}
-            canResolveTicket={allowResolveTicket}
+            onUpdateTicketStatus={updateTicketStatusById}
+            updatingTicketId={updatingTicketId}
+            canManageTicket={allowManageTicket}
           />
         </div>
       </div>

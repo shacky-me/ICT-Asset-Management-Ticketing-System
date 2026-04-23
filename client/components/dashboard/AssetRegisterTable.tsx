@@ -22,6 +22,7 @@ const PAGE_SIZE = 5;
 
 function toAssetDetails(asset: DashboardAsset) {
   return {
+    id: asset.id,
     tag: asset.tag,
     name: asset.name,
     category: asset.category,
