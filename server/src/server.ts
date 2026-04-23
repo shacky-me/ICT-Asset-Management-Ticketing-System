@@ -14,13 +14,13 @@ const allowedOrigins = (process.env.FRONTEND_URL || "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-const vercelPreviewOriginPattern =
-  /^https:\/\/ictams-sdjhrca-[a-z0-9-]+-meshacks-projects-1df4f9cd\.vercel\.app$/i;
+const vercelProjectOriginPattern =
+  /^https:\/\/ictams-sdjhrca(?:-[a-z0-9-]+)?\.vercel\.app$/i;
 
 function isAllowedOrigin(origin?: string): boolean {
   if (!origin) return true;
   if (allowedOrigins.includes(origin)) return true;
-  return vercelPreviewOriginPattern.test(origin);
+  return vercelProjectOriginPattern.test(origin);
 }
 
 app.use(
