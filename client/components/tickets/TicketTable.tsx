@@ -32,6 +32,7 @@ interface Props {
   search?: string;
   onResolveTicket?: (ticketId: string) => Promise<void> | void;
   resolvingTicketId?: string | null;
+  canResolveTicket?: boolean;
 }
 
 const TicketTable = ({
@@ -40,6 +41,7 @@ const TicketTable = ({
   search = "",
   onResolveTicket,
   resolvingTicketId,
+  canResolveTicket = false,
 }: Props) => {
   const tabFiltered =
     activeTab === "All"
@@ -145,6 +147,8 @@ const TicketTable = ({
                   <span className="text-xs text-green-600 font-semibold">
                     Resolved
                   </span>
+                ) : !canResolveTicket ? (
+                  <span className="text-xs text-gray-400 font-medium">-</span>
                 ) : (
                   <button
                     onClick={() => onResolveTicket?.(t.id)}

@@ -7,11 +7,16 @@ import { Button } from "@/components/ui/button";
 import RaiseTicketModal from "@/components/modals/RaiseTicketModal";
 import { useDashboardSearch } from "@/lib/dashboardSearch";
 import { useTickets } from "@/lib/tickets";
+import { useCurrentUser } from "@/lib/session";
+import { canResolveTickets, normalizeRole } from "@/lib/rbac";
 
 const TicketsPage = () => {
   const [activeTab, setActiveTab] = useState("All");
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const search = useDashboardSearch();
+  const currentUser = useCurrentUser();
+  const role = normalizeRole(currentUser?.role);
+  const allowResolveTicket = canResolveTickets(role);
   const { tickets, stats, resolveTicketById, resolvingTicketId } = useTickets();
 
   return (
@@ -54,6 +59,7 @@ const TicketsPage = () => {
             tickets={tickets}
             onResolveTicket={resolveTicketById}
             resolvingTicketId={resolvingTicketId}
+            canResolveTicket={allowResolveTicket}
           />
         </div>
       </div>

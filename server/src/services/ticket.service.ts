@@ -188,8 +188,6 @@ export const resolveTicket = (
     await ensureTicketTable();
 
     const normalizedRole = normalizeRole(requesterRole);
-    const normalizedRequesterId = Number(requesterId);
-
     const rows = await prisma.$queryRawUnsafe<TicketRow[]>(
       `
         SELECT id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id
@@ -207,9 +205,7 @@ export const resolveTicket = (
     }
 
     const canResolve =
-      normalizedRole === "ICT_ADMIN" ||
-      normalizedRole === "ICT_OFFICER" ||
-      target.raised_by_user_id === normalizedRequesterId;
+      normalizedRole === "ICT_ADMIN" || normalizedRole === "ICT_OFFICER";
 
     if (!canResolve) {
       return { ok: false, reason: "forbidden" };

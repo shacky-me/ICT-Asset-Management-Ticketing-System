@@ -53,6 +53,7 @@ const OverviewPage = () => {
         totalAssets={totalAssets}
         assignedAssets={assignedAssets}
         inStoreAssets={inStoreAssets}
+        allowRegisterAsset={showAssetOps}
       />
 
       {/* Stat cards */}

@@ -76,6 +76,10 @@ export function canManageAssignments(role: AppRole): boolean {
   return role === "ict_officer" || role === "ict_admin";
 }
 
+export function canResolveTickets(role: AppRole): boolean {
+  return role === "ict_officer" || role === "ict_admin";
+}
+
 export function canViewSettings(role: AppRole): boolean {
   return role === "ict_admin";
 }

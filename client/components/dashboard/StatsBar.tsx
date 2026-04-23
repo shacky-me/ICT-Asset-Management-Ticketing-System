@@ -8,13 +8,19 @@ type Props = {
   totalAssets: number;
   assignedAssets: number;
   inStoreAssets: number;
+  allowRegisterAsset?: boolean;
 };
 
-const StatsBar = ({ totalAssets, assignedAssets, inStoreAssets }: Props) => {
+const StatsBar = ({
+  totalAssets,
+  assignedAssets,
+  inStoreAssets,
+  allowRegisterAsset = false,
+}: Props) => {
   const [showModal, setShowModal] = useState(false);
   return (
     <>
-      {showModal && (
+      {allowRegisterAsset && showModal && (
         <RegisterAssetModal
           isOpen={showModal}
           onClose={() => setShowModal(false)}
@@ -52,13 +58,15 @@ const StatsBar = ({ totalAssets, assignedAssets, inStoreAssets }: Props) => {
             </p>
           </div>
         </div>
-        <Button
-          onClick={() => setShowModal(true)}
-          className="bg-[#235FE7] hover:bg-[#1a4fd6] cursor-pointer gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Register Asset
-        </Button>
+        {allowRegisterAsset && (
+          <Button
+            onClick={() => setShowModal(true)}
+            className="bg-[#235FE7] hover:bg-[#1a4fd6] cursor-pointer gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Register Asset
+          </Button>
+        )}
       </div>
     </>
   );
