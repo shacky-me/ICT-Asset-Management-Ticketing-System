@@ -9,9 +9,29 @@ import ticketRouter from "./routes/ticket.routes.js";
 const app: Express = express();
 const port = process.env.PORT || 5000;
 
+const allowedOrigins = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const vercelPreviewOriginPattern =
+  /^https:\/\/ictams-sdjhrca-[a-z0-9-]+-meshacks-projects-1df4f9cd\.vercel\.app$/i;
+
+function isAllowedOrigin(origin?: string): boolean {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  return vercelPreviewOriginPattern.test(origin);
+}
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL?.split(",") ?? true,
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
