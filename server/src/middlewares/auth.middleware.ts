@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
+import { prisma } from "../prisma.js";
 
 interface DecodedUser {
   id: number;
@@ -26,12 +27,40 @@ export const authenticateToken = (
     return res.status(500).json({ message: "JWT_SECRET is not configured" });
   }
 
-  jwt.verify(token, secret, (err, decoded) => {
-    if (err) return res.status(403).json({ message: "Invalid token" });
+  (async () => {
+    try {
+      const decoded = jwt.verify(token, secret) as DecodedUser;
+      const userId = Number(decoded?.id);
 
-    req.user = decoded as DecodedUser;
-    next();
-  });
+      if (!Number.isFinite(userId)) {
+        return res.status(403).json({ message: "Invalid token" });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          role: true,
+          departmentId: true,
+          isActive: true,
+        },
+      });
+
+      if (!user || !user.isActive) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      req.user = {
+        id: user.id,
+        role: user.role,
+        departmentId: user.departmentId ?? undefined,
+      };
+
+      next();
+    } catch {
+      return res.status(403).json({ message: "Invalid token" });
+    }
+  })();
 };
 
 export const requireAdmin = (
