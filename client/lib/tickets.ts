@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getTicketStats, getTickets, type ApiTicket } from "@/lib/apiClient";
+import {
+  getTicketStats,
+  getTickets,
+  resolveTicket,
+  type ApiTicket,
+} from "@/lib/apiClient";
 
 export type TicketRow = ApiTicket;
 
@@ -14,6 +19,9 @@ export type TicketStats = {
 
 export function useTickets() {
   const [tickets, setTickets] = useState<TicketRow[]>([]);
+  const [resolvingTicketId, setResolvingTicketId] = useState<string | null>(
+    null,
+  );
   const [stats, setStats] = useState<TicketStats>({
     open: 0,
     inProgress: 0,
@@ -23,6 +31,7 @@ export function useTickets() {
 
   useEffect(() => {
     let cancelled = false;
+    const TICKETS_CHANGED_EVENT = "ictams:tickets-changed";
 
     const load = async () => {
       try {
@@ -34,20 +43,48 @@ export function useTickets() {
         if (cancelled) return;
         setTickets(ticketResponse.tickets);
         setStats(statsResponse);
-      } catch {
+      } catch (error) {
+        // Keep current values to avoid blanking the UI during temporary backend restarts.
         if (!cancelled) {
-          setTickets([]);
-          setStats({ open: 0, inProgress: 0, pending: 0, resolved: 0 });
+          console.error("Failed to load tickets", error);
         }
       }
     };
 
     load();
+    const handleTicketsChanged = () => {
+      load();
+    };
+
+    const intervalId = window.setInterval(() => {
+      load();
+    }, 15000);
+
+    window.addEventListener(TICKETS_CHANGED_EVENT, handleTicketsChanged);
 
     return () => {
       cancelled = true;
+      window.removeEventListener(TICKETS_CHANGED_EVENT, handleTicketsChanged);
+      window.clearInterval(intervalId);
     };
   }, []);
+
+  const resolveTicketById = async (ticketId: string) => {
+    setResolvingTicketId(ticketId);
+    try {
+      await resolveTicket(ticketId);
+
+      const [ticketResponse, statsResponse] = await Promise.all([
+        getTickets(),
+        getTicketStats(),
+      ]);
+
+      setTickets(ticketResponse.tickets);
+      setStats(statsResponse);
+    } finally {
+      setResolvingTicketId(null);
+    }
+  };
 
   const openOrInProgress = useMemo(
     () =>
@@ -57,5 +94,11 @@ export function useTickets() {
     [tickets],
   );
 
-  return { tickets, stats, openOrInProgress };
+  return {
+    tickets,
+    stats,
+    openOrInProgress,
+    resolveTicketById,
+    resolvingTicketId,
+  };
 }

@@ -3,8 +3,7 @@ import type {
   TicketRecord,
   TicketStatus,
 } from "../types/ticket.types.js";
-
-const tickets: TicketRecord[] = [];
+import { prisma } from "../prisma.js";
 
 function generateTicketId() {
   const year = new Date().getFullYear();
@@ -22,37 +21,115 @@ function formatRelative(isoDate: string) {
   return `${diffDays}d ago`;
 }
 
-export const createTicket = (
-  payload: CreateTicketBody,
-  raisedByUserId: number,
-): TicketRecord => {
-  const now = new Date().toISOString();
-  const ticket: TicketRecord = {
-    id: generateTicketId(),
-    issue: payload.title,
-    priority: payload.priority,
-    department: payload.department,
-    assignedTo: payload.assignedTo || "Unassigned",
-    assetTag: payload.affectedAssetTag || "N/A",
-    status: "Open",
-    created: formatRelative(now),
-    raisedByUserId,
-  };
-
-  tickets.unshift(ticket);
-  return ticket;
+type TicketRow = {
+  id: string;
+  issue: string;
+  priority: string;
+  department: string;
+  assigned_to: string;
+  asset_tag: string;
+  status: string;
+  created_at: Date;
+  raised_by_user_id: number;
 };
 
-export const listTickets = (filters?: {
+function normalizeRole(role: string) {
+  return String(role || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+}
+
+let ticketTableEnsured = false;
+
+async function ensureTicketTable() {
+  if (ticketTableEnsured) return;
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "Ticket" (
+      id TEXT PRIMARY KEY,
+      issue TEXT NOT NULL,
+      priority TEXT NOT NULL,
+      department TEXT NOT NULL,
+      assigned_to TEXT NOT NULL,
+      asset_tag TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      raised_by_user_id INTEGER NOT NULL
+    );
+  `);
+
+  ticketTableEnsured = true;
+}
+
+function mapRowToTicket(row: TicketRow): TicketRecord {
+  return {
+    id: row.id,
+    issue: row.issue,
+    priority: row.priority as TicketRecord["priority"],
+    department: row.department,
+    assignedTo: row.assigned_to,
+    assetTag: row.asset_tag,
+    status: row.status as TicketStatus,
+    created: formatRelative(new Date(row.created_at).toISOString()),
+    raisedByUserId: row.raised_by_user_id,
+  };
+}
+
+export const createTicket = async (
+  payload: CreateTicketBody,
+  raisedByUserId: number,
+): Promise<TicketRecord> => {
+  await ensureTicketTable();
+
+  const ticketId = generateTicketId();
+
+  const rows = await prisma.$queryRawUnsafe<TicketRow[]>(
+    `
+      INSERT INTO "Ticket" (id, issue, priority, department, assigned_to, asset_tag, status, raised_by_user_id)
+      VALUES ($1, $2, $3, $4, $5, $6, 'Open', $7)
+      RETURNING id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id;
+    `,
+    ticketId,
+    payload.title,
+    payload.priority,
+    payload.department,
+    payload.assignedTo || "Unassigned",
+    payload.affectedAssetTag || "N/A",
+    raisedByUserId,
+  );
+
+  const created = rows[0];
+  if (!created) {
+    throw new Error("Ticket creation failed");
+  }
+
+  return mapRowToTicket(created);
+};
+
+export const listTickets = async (filters?: {
   status?: string;
   search?: string;
   requesterId: number;
   requesterRole: string;
-}): TicketRecord[] => {
+}): Promise<TicketRecord[]> => {
+  await ensureTicketTable();
+
+  const rows = await prisma.$queryRawUnsafe<TicketRow[]>(
+    `
+      SELECT id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id
+      FROM "Ticket"
+      ORDER BY created_at DESC;
+    `,
+  );
+
+  const tickets = rows.map(mapRowToTicket);
+  const requesterId = Number(filters?.requesterId);
+  const requesterRole = normalizeRole(filters?.requesterRole || "");
+
   return tickets.filter((ticket) => {
     const canSeeTicket =
-      filters?.requesterRole === "ICT_ADMIN" ||
-      ticket.raisedByUserId === filters?.requesterId;
+      requesterRole === "ICT_ADMIN" || ticket.raisedByUserId === requesterId;
 
     const statusMatch =
       !filters?.status ||
@@ -79,11 +156,14 @@ export const listTickets = (filters?: {
   });
 };
 
-export const getTicketStats = (requesterId: number, requesterRole: string) => {
-  const visibleTickets = tickets.filter(
-    (ticket) =>
-      requesterRole === "ICT_ADMIN" || ticket.raisedByUserId === requesterId,
-  );
+export const getTicketStats = async (
+  requesterId: number,
+  requesterRole: string,
+) => {
+  const visibleTickets = await listTickets({
+    requesterId,
+    requesterRole,
+  });
 
   const countByStatus = (status: TicketStatus) =>
     visibleTickets.filter((ticket) => ticket.status === status).length;
@@ -95,3 +175,60 @@ export const getTicketStats = (requesterId: number, requesterRole: string) => {
     resolved: countByStatus("Resolved"),
   };
 };
+
+export const resolveTicket = (
+  ticketId: string,
+  requesterId: number,
+  requesterRole: string,
+): Promise<
+  | { ok: true; ticket: TicketRecord }
+  | { ok: false; reason: "not_found" | "forbidden" }
+> =>
+  (async () => {
+    await ensureTicketTable();
+
+    const normalizedRole = normalizeRole(requesterRole);
+    const normalizedRequesterId = Number(requesterId);
+
+    const rows = await prisma.$queryRawUnsafe<TicketRow[]>(
+      `
+        SELECT id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id
+        FROM "Ticket"
+        WHERE id = $1
+        LIMIT 1;
+      `,
+      ticketId,
+    );
+
+    const target = rows[0];
+
+    if (!target) {
+      return { ok: false, reason: "not_found" };
+    }
+
+    const canResolve =
+      normalizedRole === "ICT_ADMIN" ||
+      normalizedRole === "ICT_OFFICER" ||
+      target.raised_by_user_id === normalizedRequesterId;
+
+    if (!canResolve) {
+      return { ok: false, reason: "forbidden" };
+    }
+
+    const updatedRows = await prisma.$queryRawUnsafe<TicketRow[]>(
+      `
+        UPDATE "Ticket"
+        SET status = 'Resolved'
+        WHERE id = $1
+        RETURNING id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id;
+      `,
+      ticketId,
+    );
+
+    const updated = updatedRows[0];
+    if (!updated) {
+      return { ok: false, reason: "not_found" };
+    }
+
+    return { ok: true, ticket: mapRowToTicket(updated) };
+  })();

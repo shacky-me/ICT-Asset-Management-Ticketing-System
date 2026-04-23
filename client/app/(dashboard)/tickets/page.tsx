@@ -12,7 +12,7 @@ const TicketsPage = () => {
   const [activeTab, setActiveTab] = useState("All");
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const search = useDashboardSearch();
-  const { tickets, stats } = useTickets();
+  const { tickets, stats, resolveTicketById, resolvingTicketId } = useTickets();
 
   return (
     <>
@@ -52,6 +52,8 @@ const TicketsPage = () => {
             activeTab={activeTab}
             search={search}
             tickets={tickets}
+            onResolveTicket={resolveTicketById}
+            resolvingTicketId={resolvingTicketId}
           />
         </div>
       </div>

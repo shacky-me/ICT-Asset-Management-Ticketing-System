@@ -46,7 +46,7 @@ const OpenTicketsTable = ({
         ticket.assignedTo.toLowerCase().includes(query) ||
         ticket.status.toLowerCase().includes(query),
     );
-  }, [search]);
+  }, [search, tickets]);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">

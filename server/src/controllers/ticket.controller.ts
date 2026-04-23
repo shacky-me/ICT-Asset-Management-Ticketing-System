@@ -4,10 +4,11 @@ import {
   createTicket,
   getTicketStats,
   listTickets,
+  resolveTicket,
 } from "../services/ticket.service.js";
 import type { CreateTicketBody } from "../types/ticket.types.js";
 
-export const createTicketHandler = (
+export const createTicketHandler = async (
   req: AuthRequest<CreateTicketBody>,
   res: Response,
 ) => {
@@ -17,16 +18,21 @@ export const createTicketHandler = (
     return res.status(400).json({ message: "Missing required fields" });
   }
 
-  if (!req.user?.id) {
+  const requesterId = Number(req.user?.id);
+
+  if (!Number.isFinite(requesterId)) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const ticket = createTicket(req.body, req.user.id);
+  const ticket = await createTicket(req.body, requesterId);
   return res.status(201).json({ id: ticket.id });
 };
 
-export const listTicketsHandler = (req: AuthRequest, res: Response) => {
-  if (!req.user?.id || !req.user?.role) {
+export const listTicketsHandler = async (req: AuthRequest, res: Response) => {
+  const requesterId = Number(req.user?.id);
+  const requesterRole = String(req.user?.role || "");
+
+  if (!Number.isFinite(requesterId) || !requesterRole) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
@@ -37,19 +43,52 @@ export const listTicketsHandler = (req: AuthRequest, res: Response) => {
   if (status) filters.status = status;
   if (search) filters.search = search;
 
-  const tickets = listTickets({
+  const tickets = await listTickets({
     ...filters,
-    requesterId: req.user.id,
-    requesterRole: req.user.role,
+    requesterId,
+    requesterRole,
   });
 
   return res.status(200).json({ tickets });
 };
 
-export const ticketStatsHandler = (req: AuthRequest, res: Response) => {
-  if (!req.user?.id || !req.user?.role) {
+export const ticketStatsHandler = async (req: AuthRequest, res: Response) => {
+  const requesterId = Number(req.user?.id);
+  const requesterRole = String(req.user?.role || "");
+
+  if (!Number.isFinite(requesterId) || !requesterRole) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  return res.status(200).json(getTicketStats(req.user.id, req.user.role));
+  return res.status(200).json(await getTicketStats(requesterId, requesterRole));
+};
+
+export const resolveTicketHandler = async (req: AuthRequest, res: Response) => {
+  const requesterId = Number(req.user?.id);
+  const requesterRole = String(req.user?.role || "");
+
+  if (!Number.isFinite(requesterId) || !requesterRole) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const ticketId = String(req.params.ticketId || "").trim();
+  if (!ticketId) {
+    return res.status(400).json({ message: "Ticket ID is required" });
+  }
+
+  const result = await resolveTicket(ticketId, requesterId, requesterRole);
+
+  if (!result.ok) {
+    if (result.reason === "not_found") {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+    return res
+      .status(403)
+      .json({ message: "Not allowed to resolve this ticket" });
+  }
+
+  return res.status(200).json({
+    message: "Ticket resolved successfully",
+    ticket: result.ticket,
+  });
 };

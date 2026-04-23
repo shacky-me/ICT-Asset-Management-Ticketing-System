@@ -18,7 +18,6 @@ const AboutSection = () => {
             value:
               "State Department for Justice, Human Rights & Constitutional Affairs",
           },
-          { label: "Last Backup", value: "23 Mar, 2026 - 02:00 AM" },
           {
             label: "License",
             value: "Government of Kenya - Internal Use Only",

@@ -3,6 +3,7 @@ import { authenticateToken } from "../middlewares/auth.middleware.js";
 import {
   createTicketHandler,
   listTicketsHandler,
+  resolveTicketHandler,
   ticketStatsHandler,
 } from "../controllers/ticket.controller.js";
 
@@ -12,5 +13,6 @@ router.use(authenticateToken);
 router.get("/", listTicketsHandler);
 router.get("/stats", ticketStatsHandler);
 router.post("/", createTicketHandler);
+router.patch("/:ticketId/resolve", resolveTicketHandler);
 
 export default router;

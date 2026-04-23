@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import AccessRequestDecisionModal from "@/components/settings/AccessRequestDecisionModal";
 import {
   approveAccessRequest,
   getPendingAccessRequests,
@@ -33,6 +34,12 @@ const UserManagementSection = () => {
   const [requestSearchQuery, setRequestSearchQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [decisionAction, setDecisionAction] = useState<
+    "approve" | "reject" | null
+  >(null);
+  const [decisionRequest, setDecisionRequest] =
+    useState<PendingAccessRequest | null>(null);
+  const [decisionReason, setDecisionReason] = useState("");
 
   const pageSize = 5;
 
@@ -99,6 +106,21 @@ const UserManagementSection = () => {
     };
   }, [isAdmin]);
 
+  const openDecisionModal = (
+    action: "approve" | "reject",
+    request: PendingAccessRequest,
+  ) => {
+    setDecisionAction(action);
+    setDecisionRequest(request);
+    setDecisionReason("");
+  };
+
+  const closeDecisionModal = () => {
+    setDecisionAction(null);
+    setDecisionRequest(null);
+    setDecisionReason("");
+  };
+
   const handleApprove = async (request: PendingAccessRequest) => {
     setActiveRequestId(request.id);
     setStatusMessage("");
@@ -117,22 +139,16 @@ const UserManagementSection = () => {
       );
     } finally {
       setActiveRequestId(null);
+      closeDecisionModal();
     }
   };
 
   const handleReject = async (request: PendingAccessRequest) => {
-    const reason = window.prompt(
-      `Optional reason for rejecting ${request.fullName}:`,
-      "",
-    );
-
-    if (reason === null) return;
-
     setActiveRequestId(request.id);
     setStatusMessage("");
 
     try {
-      await rejectAccessRequest(request.id, reason.trim());
+      await rejectAccessRequest(request.id, decisionReason.trim());
       setRequests((prev) => prev.filter((item) => item.id !== request.id));
       setStatusMessage(
         `Rejected ${request.fullName}. Applicant has been notified.`,
@@ -145,6 +161,7 @@ const UserManagementSection = () => {
       );
     } finally {
       setActiveRequestId(null);
+      closeDecisionModal();
     }
   };
 
@@ -283,14 +300,14 @@ const UserManagementSection = () => {
 
                   <div className="flex items-center gap-2 shrink-0">
                     <Button
-                      onClick={() => handleReject(request)}
+                      onClick={() => openDecisionModal("reject", request)}
                       disabled={active}
                       className="bg-red-600 hover:bg-red-700 text-xs"
                     >
                       {active ? "Working..." : "Reject"}
                     </Button>
                     <Button
-                      onClick={() => handleApprove(request)}
+                      onClick={() => openDecisionModal("approve", request)}
                       disabled={active}
                       className="bg-[#235FE7] hover:bg-[#1a4fd6] text-xs"
                     >
@@ -468,6 +485,27 @@ const UserManagementSection = () => {
           </div>
         )}
       </div>
+
+      <AccessRequestDecisionModal
+        isOpen={Boolean(decisionAction && decisionRequest)}
+        action={decisionAction || "approve"}
+        applicantName={decisionRequest?.fullName || ""}
+        applicantEmail={decisionRequest?.email || ""}
+        reason={decisionReason}
+        onReasonChange={setDecisionReason}
+        isLoading={Boolean(
+          decisionRequest && activeRequestId === decisionRequest.id,
+        )}
+        onClose={closeDecisionModal}
+        onConfirm={() => {
+          if (!decisionRequest || !decisionAction) return;
+          if (decisionAction === "approve") {
+            void handleApprove(decisionRequest);
+            return;
+          }
+          void handleReject(decisionRequest);
+        }}
+      />
     </div>
   );
 };

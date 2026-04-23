@@ -30,9 +30,17 @@ interface Props {
   tickets: Ticket[];
   activeTab: string;
   search?: string;
+  onResolveTicket?: (ticketId: string) => Promise<void> | void;
+  resolvingTicketId?: string | null;
 }
 
-const TicketTable = ({ tickets, activeTab, search = "" }: Props) => {
+const TicketTable = ({
+  tickets,
+  activeTab,
+  search = "",
+  onResolveTicket,
+  resolvingTicketId,
+}: Props) => {
   const tabFiltered =
     activeTab === "All"
       ? tickets
@@ -133,9 +141,19 @@ const TicketTable = ({ tickets, activeTab, search = "" }: Props) => {
                 {t.created}
               </td>
               <td className="px-3 py-4">
-                <span className="text-xs text-[#235FE7] font-semibold cursor-pointer hover:underline">
-                  View
-                </span>
+                {t.status === "Resolved" ? (
+                  <span className="text-xs text-green-600 font-semibold">
+                    Resolved
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => onResolveTicket?.(t.id)}
+                    disabled={Boolean(resolvingTicketId === t.id)}
+                    className="text-xs text-[#235FE7] font-semibold hover:underline disabled:opacity-40 disabled:no-underline"
+                  >
+                    {resolvingTicketId === t.id ? "Resolving..." : "Resolve"}
+                  </button>
+                )}
               </td>
             </tr>
           ))}

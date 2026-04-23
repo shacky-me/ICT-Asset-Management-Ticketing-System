@@ -31,6 +31,12 @@ function resolveApiBaseUrl(): string {
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
+const TICKETS_CHANGED_EVENT = "ictams:tickets-changed";
+
+function publishTicketsChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(TICKETS_CHANGED_EVENT));
+}
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -472,10 +478,13 @@ type CreateTicketResponse = {
 export async function createTicket(
   payload: NewTicketFormData & { assignedTo: string | null },
 ) {
-  return apiRequest<CreateTicketResponse>("/tickets", {
+  const response = await apiRequest<CreateTicketResponse>("/tickets", {
     method: "POST",
     body: payload,
   });
+
+  publishTicketsChanged();
+  return response;
 }
 
 export async function getTickets(params?: {
@@ -492,6 +501,20 @@ export async function getTickets(params?: {
 
 export async function getTicketStats(): Promise<ApiTicketStats> {
   return apiRequest<ApiTicketStats>("/tickets/stats");
+}
+
+export async function resolveTicket(
+  ticketId: string,
+): Promise<{ message: string; ticket: ApiTicket }> {
+  const response = await apiRequest<{ message: string; ticket: ApiTicket }>(
+    `/tickets/${ticketId}/resolve`,
+    {
+      method: "PATCH",
+    },
+  );
+
+  publishTicketsChanged();
+  return response;
 }
 
 // User Management (Admin only)
