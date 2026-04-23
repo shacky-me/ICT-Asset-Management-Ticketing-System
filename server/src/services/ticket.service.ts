@@ -22,7 +22,10 @@ function formatRelative(isoDate: string) {
   return `${diffDays}d ago`;
 }
 
-export const createTicket = (payload: CreateTicketBody): TicketRecord => {
+export const createTicket = (
+  payload: CreateTicketBody,
+  raisedByUserId: number,
+): TicketRecord => {
   const now = new Date().toISOString();
   const ticket: TicketRecord = {
     id: generateTicketId(),
@@ -33,6 +36,7 @@ export const createTicket = (payload: CreateTicketBody): TicketRecord => {
     assetTag: payload.affectedAssetTag || "N/A",
     status: "Open",
     created: formatRelative(now),
+    raisedByUserId,
   };
 
   tickets.unshift(ticket);
@@ -42,8 +46,14 @@ export const createTicket = (payload: CreateTicketBody): TicketRecord => {
 export const listTickets = (filters?: {
   status?: string;
   search?: string;
+  requesterId: number;
+  requesterRole: string;
 }): TicketRecord[] => {
   return tickets.filter((ticket) => {
+    const canSeeTicket =
+      filters?.requesterRole === "ICT_ADMIN" ||
+      ticket.raisedByUserId === filters?.requesterId;
+
     const statusMatch =
       !filters?.status ||
       filters.status === "All" ||
@@ -65,13 +75,18 @@ export const listTickets = (filters?: {
         .toLowerCase()
         .includes(query);
 
-    return statusMatch && searchMatch;
+    return canSeeTicket && statusMatch && searchMatch;
   });
 };
 
-export const getTicketStats = () => {
+export const getTicketStats = (requesterId: number, requesterRole: string) => {
+  const visibleTickets = tickets.filter(
+    (ticket) =>
+      requesterRole === "ICT_ADMIN" || ticket.raisedByUserId === requesterId,
+  );
+
   const countByStatus = (status: TicketStatus) =>
-    tickets.filter((ticket) => ticket.status === status).length;
+    visibleTickets.filter((ticket) => ticket.status === status).length;
 
   return {
     open: countByStatus("Open"),
