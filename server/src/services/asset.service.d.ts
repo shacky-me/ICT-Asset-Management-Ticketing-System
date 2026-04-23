@@ -27,6 +27,10 @@ export declare const getAllAssets: (filters: any) => Promise<{
         department: {
             name: string;
         };
+        procurement: {
+            warrantyEnd: Date | null;
+            warrantyType: string | null;
+        } | null;
     } & {
         model: string;
         id: number;

@@ -20,6 +20,9 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json());
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 app.use("/api", authRoutes);
 app.use("/api/access-request", accessRequestRoutes);
 app.use("/api/assets", assetRoutes);

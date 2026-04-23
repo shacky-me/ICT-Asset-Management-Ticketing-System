@@ -4,6 +4,7 @@ import jwt, { type Secret, type SignOptions } from "jsonwebtoken";
 import { prisma } from "../prisma.js";
 import type { AuthRequest } from "../types/auth.types.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";
+import { generateTempPassword } from "../utils/generateRandomPassword.js";
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -11,6 +12,7 @@ export const login = async (req: Request, res: Response) => {
     const normalizedIdentifier = String(identifier || email || "")
       .trim()
       .toLowerCase();
+    const rawIdentifier = String(identifier || email || "").trim();
 
     if (!normalizedIdentifier || !password) {
       return res.status(400).json({
@@ -20,8 +22,12 @@ export const login = async (req: Request, res: Response) => {
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: normalizedIdentifier },
-          { staffNo: normalizedIdentifier },
+          {
+            email: { equals: normalizedIdentifier, mode: "insensitive" },
+          },
+          {
+            staffNo: { equals: rawIdentifier, mode: "insensitive" },
+          },
         ],
       },
       include: { department: true },
@@ -220,10 +226,105 @@ export const forgotPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true, fullName: true, email: true, isActive: true },
+    let user = await prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: "insensitive" },
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isActive: true,
+        staffNo: true,
+      },
     });
+
+    if (!user) {
+      const approvedRequest = await prisma.accessRequest.findFirst({
+        where: {
+          email: { equals: email, mode: "insensitive" },
+          approved: true,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          fullName: true,
+          email: true,
+          staffNo: true,
+          jobTitle: true,
+          roleRequested: true,
+          departmentId: true,
+        },
+      });
+
+      if (approvedRequest) {
+        const existingByStaffNo = await prisma.user.findFirst({
+          where: {
+            staffNo: {
+              equals: approvedRequest.staffNo,
+              mode: "insensitive",
+            },
+          },
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            isActive: true,
+            staffNo: true,
+          },
+        });
+
+        if (existingByStaffNo) {
+          const recovered = await prisma.user.update({
+            where: { id: existingByStaffNo.id },
+            data: {
+              email: approvedRequest.email.trim().toLowerCase(),
+              fullName: approvedRequest.fullName,
+              jobTitle: approvedRequest.jobTitle,
+              role: approvedRequest.roleRequested,
+              departmentId: approvedRequest.departmentId,
+              isActive: true,
+            },
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              isActive: true,
+              staffNo: true,
+            },
+          });
+
+          user = recovered;
+        } else {
+          const tempPasswordHash = await bcrypt.hash(
+            generateTempPassword(),
+            10,
+          );
+
+          const created = await prisma.user.create({
+            data: {
+              fullName: approvedRequest.fullName,
+              staffNo: approvedRequest.staffNo,
+              jobTitle: approvedRequest.jobTitle,
+              email: approvedRequest.email.trim().toLowerCase(),
+              password: tempPasswordHash,
+              role: approvedRequest.roleRequested,
+              departmentId: approvedRequest.departmentId,
+              isActive: true,
+              mustChangePassword: true,
+            },
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              isActive: true,
+              staffNo: true,
+            },
+          });
+
+          user = created;
+        }
+      }
+    }
 
     if (user?.isActive) {
       const resetSecret = process.env.JWT_SECRET;

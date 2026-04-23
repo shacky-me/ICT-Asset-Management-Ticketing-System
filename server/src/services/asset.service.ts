@@ -111,7 +111,11 @@ export const getAssetStats = async () => {
   const [total, assigned, inStore, maintenance] = await Promise.all([
     prisma.asset.count(),
     prisma.asset.count({ where: { status: "Assigned" } }),
-    prisma.asset.count({ where: { status: "InStore" } }),
+    prisma.asset.count({
+      where: {
+        OR: [{ status: "InStore" }, { status: "Available" }],
+      },
+    }),
     prisma.asset.count({ where: { status: "Maintenance" } }),
   ]);
 
@@ -142,6 +146,12 @@ export const getAllAssets = async (filters: any) => {
       take: Number(limit),
       include: {
         department: { select: { name: true } }, // To show the DEPT column
+        procurement: {
+          select: {
+            warrantyEnd: true,
+            warrantyType: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     }),

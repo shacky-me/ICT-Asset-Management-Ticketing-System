@@ -186,24 +186,20 @@ export const sendPasswordResetEmail = async ({
   name,
   resetUrl,
 }: PasswordResetEmail) => {
-  try {
-    const transporter = createTransporter();
-    const fromAddress = resolveSmtpUser();
+  const transporter = createTransporter();
+  const fromAddress = resolveSmtpUser();
 
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to,
-      subject: "Reset your IT Asset System password",
-      html: `<h2>Hello ${name}</h2>
+  const info = await transporter.sendMail({
+    from: fromAddress,
+    to,
+    subject: "Reset your IT Asset System password",
+    html: `<h2>Hello ${name}</h2>
              <p>We received a request to reset your password.</p>
              <p><a href="${resetUrl}">Reset Password</a></p>
              <p>This link expires in 30 minutes. If you did not request this, you can ignore this email.</p>`,
-    });
+  });
 
-    console.log("Password reset email sent:", info.response);
-  } catch (error) {
-    console.error("Error sending password reset email:", error);
-  }
+  console.log("Password reset email sent:", info.response);
 };
 
 export const sendAccessRejectedEmail = async ({
