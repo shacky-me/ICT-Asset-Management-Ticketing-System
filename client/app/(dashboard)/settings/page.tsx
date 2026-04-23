@@ -25,7 +25,7 @@ const SettingsPage = () => {
   if (!currentUser || !canViewSettings(role)) return null;
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 w-full max-w-275">
       <div>
         <h1 className="text-base font-bold text-gray-900">Settings</h1>
         <p className="text-xs text-gray-400">

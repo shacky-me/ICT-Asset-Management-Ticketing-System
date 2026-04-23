@@ -528,3 +528,50 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const removeUserAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user?.role !== "ICT_ADMIN") {
+      return res
+        .status(403)
+        .json({ message: "Unauthorized. Admin access required." });
+    }
+
+    const userId = Number(req.params?.userId || req.body?.userId);
+    if (!Number.isFinite(userId)) {
+      return res.status(400).json({ message: "Valid userId is required" });
+    }
+
+    if (req.user?.id === userId) {
+      return res
+        .status(400)
+        .json({ message: "You cannot remove your own account" });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true, fullName: true, email: true },
+    });
+
+    if (!existingUser || !existingUser.isActive) {
+      return res.status(404).json({ message: "User account not found" });
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false },
+    });
+
+    return res.status(200).json({
+      message: "User account removed successfully",
+      user: {
+        id: existingUser.id,
+        fullName: existingUser.fullName,
+        email: existingUser.email,
+      },
+    });
+  } catch (error) {
+    console.error("REMOVE USER ACCOUNT ERROR:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

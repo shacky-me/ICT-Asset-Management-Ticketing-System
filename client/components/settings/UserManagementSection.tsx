@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import AccessRequestDecisionModal from "@/components/settings/AccessRequestDecisionModal";
 import UserRoleChangeModal from "@/components/settings/UserRoleChangeModal";
+import UserAccountRemovalModal from "@/components/settings/UserAccountRemovalModal";
 import {
   approveAccessRequest,
   getPendingAccessRequests,
   getAllUsers,
+  removeUserAccount,
   rejectAccessRequest,
   type PendingAccessRequest,
   updateUserRole,
@@ -44,10 +46,12 @@ const UserManagementSection = () => {
   const [statusMessage, setStatusMessage] = useState("");
   const [userStatusMessage, setUserStatusMessage] = useState("");
   const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<number | null>(null);
   const [roleFilter, setRoleFilter] = useState<"all" | RoleCode>("all");
   const [requestSearchQuery, setRequestSearchQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
   const [decisionAction, setDecisionAction] = useState<
     "approve" | "reject" | null
   >(null);
@@ -57,10 +61,14 @@ const UserManagementSection = () => {
   const [roleModalUser, setRoleModalUser] = useState<ApiSystemUser | null>(
     null,
   );
+  const [removeModalUser, setRemoveModalUser] = useState<ApiSystemUser | null>(
+    null,
+  );
   const [selectedRoleCode, setSelectedRoleCode] =
     useState<RoleCode>("END_USER");
 
   const pageSize = 5;
+  const usersPageSize = 5;
 
   const isAdmin = currentUser?.role === "ICT Administrator";
 
@@ -193,6 +201,14 @@ const UserManagementSection = () => {
     setRoleModalUser(null);
   };
 
+  const openRemoveModal = (user: ApiSystemUser) => {
+    setRemoveModalUser(user);
+  };
+
+  const closeRemoveModal = () => {
+    setRemoveModalUser(null);
+  };
+
   const handleRoleChange = async () => {
     if (!roleModalUser) return;
 
@@ -218,6 +234,30 @@ const UserManagementSection = () => {
       );
     } finally {
       setUpdatingUserId(null);
+    }
+  };
+
+  const handleRemoveUser = async () => {
+    if (!removeModalUser) return;
+
+    setRemovingUserId(removeModalUser.id);
+    setUserStatusMessage("");
+
+    try {
+      await removeUserAccount(removeModalUser.id);
+      setUsers((prev) => prev.filter((u) => u.id !== removeModalUser.id));
+      setUserStatusMessage(
+        `${removeModalUser.fullName}'s account was removed.`,
+      );
+      closeRemoveModal();
+    } catch (error) {
+      const detail =
+        error instanceof Error && error.message ? ` ${error.message}` : "";
+      setUserStatusMessage(
+        `Unable to remove ${removeModalUser.fullName}'s account.${detail}`,
+      );
+    } finally {
+      setRemovingUserId(null);
     }
   };
 
@@ -264,6 +304,16 @@ const UserManagementSection = () => {
 
     return matchesQuery && matchesRole;
   });
+
+  const totalUsersPages = Math.max(
+    1,
+    Math.ceil(filteredUsers.length / usersPageSize),
+  );
+  const currentUsersPage = Math.min(usersPage, totalUsersPages);
+  const paginatedUsers = filteredUsers.slice(
+    (currentUsersPage - 1) * usersPageSize,
+    currentUsersPage * usersPageSize,
+  );
 
   return (
     <div className="space-y-6">
@@ -406,14 +456,18 @@ const UserManagementSection = () => {
               type="text"
               placeholder="Search by name or email..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setUsersPage(1);
+              }}
               className="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <select
               value={roleFilter}
-              onChange={(event) =>
-                setRoleFilter(event.target.value as "all" | RoleCode)
-              }
+              onChange={(event) => {
+                setRoleFilter(event.target.value as "all" | RoleCode);
+                setUsersPage(1);
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All roles</option>
@@ -434,53 +488,66 @@ const UserManagementSection = () => {
             <p className="text-sm text-gray-500">No users found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div>
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col className="w-[17%]" />
+                <col className="w-[24%]" />
+                <col className="w-[11%]" />
+                <col className="w-[16%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead>
                 <tr className="border-t border-gray-100 bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Staff No.
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Current Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Department
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Joined
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600">
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">
                     Action
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <tr
                     key={user.id}
                     className="border-t border-gray-100 hover:bg-gray-50"
                   >
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-medium text-gray-900">
+                    <td className="px-4 py-4 align-top">
+                      <p className="text-sm font-medium text-gray-900 wrap-break-word leading-5">
                         {user.fullName}
                       </p>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600">{user.email}</p>
+                    <td className="px-4 py-4 align-top">
+                      <p className="text-sm text-gray-600 break-all leading-5">
+                        {user.email}
+                      </p>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600">{user.staffNo}</p>
+                    <td className="px-4 py-4 align-top">
+                      <p className="text-sm text-gray-600 wrap-break-word leading-5">
+                        {user.staffNo}
+                      </p>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 align-top">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                        className={`inline-flex max-w-full items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-normal leading-4 ${
                           user.role === "ICT Administrator"
                             ? "bg-purple-50 text-purple-700"
                             : "bg-blue-50 text-blue-700"
@@ -494,18 +561,18 @@ const UserManagementSection = () => {
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600">
+                    <td className="px-4 py-4 align-top">
+                      <p className="text-sm text-gray-600 wrap-break-word leading-5">
                         {user.department?.name || "N/A"}
                       </p>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600">
+                    <td className="px-4 py-4 align-top">
+                      <p className="text-xs text-gray-600 wrap-break-word leading-5">
                         {formatDate(user.createdAt)}
                       </p>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-4 py-4 align-top text-center">
+                      <div className="flex flex-col items-stretch justify-center gap-2">
                         <button
                           onClick={() =>
                             openRoleModal(
@@ -517,16 +584,19 @@ const UserManagementSection = () => {
                           }
                           disabled={
                             updatingUserId === user.id ||
+                            removingUserId === user.id ||
                             String(user.id) === currentUser?.id
                           }
-                          className={`text-xs font-medium px-3 py-1.5 rounded transition-colors ${
+                          className={`text-xs font-medium px-2 py-1.5 rounded transition-colors ${
                             updatingUserId === user.id
                               ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                              : String(user.id) === currentUser?.id
+                              : removingUserId === user.id
                                 ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                : user.role === "ICT Administrator"
-                                  ? "bg-red-50 text-red-600 hover:bg-red-100"
-                                  : "bg-green-50 text-green-600 hover:bg-green-100"
+                                : String(user.id) === currentUser?.id
+                                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                  : user.role === "ICT Administrator"
+                                    ? "bg-red-50 text-red-600 hover:bg-red-100"
+                                    : "bg-green-50 text-green-600 hover:bg-green-100"
                           }`}
                         >
                           {updatingUserId === user.id
@@ -542,11 +612,26 @@ const UserManagementSection = () => {
                           onClick={() => openRoleModal(user)}
                           disabled={
                             updatingUserId === user.id ||
+                            removingUserId === user.id ||
                             String(user.id) === currentUser?.id
                           }
-                          className="text-xs font-medium px-3 py-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          className="text-xs font-medium px-2 py-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                         >
                           Change Role
+                        </button>
+
+                        <button
+                          onClick={() => openRemoveModal(user)}
+                          disabled={
+                            updatingUserId === user.id ||
+                            removingUserId === user.id ||
+                            String(user.id) === currentUser?.id
+                          }
+                          className="text-xs font-medium px-2 py-1.5 rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                        >
+                          {removingUserId === user.id
+                            ? "Removing..."
+                            : "Remove"}
                         </button>
                       </div>
                     </td>
@@ -554,6 +639,35 @@ const UserManagementSection = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!isUsersLoading && filteredUsers.length > 0 && (
+          <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between">
+            <p className="text-[11px] text-gray-500">
+              Showing {(currentUsersPage - 1) * usersPageSize + 1}-
+              {Math.min(currentUsersPage * usersPageSize, filteredUsers.length)}{" "}
+              of {filteredUsers.length} • Page {currentUsersPage} of{" "}
+              {totalUsersPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                className="h-7 px-3 text-xs bg-gray-200 text-gray-700 hover:bg-gray-300"
+                disabled={currentUsersPage <= 1}
+                onClick={() => setUsersPage((prev) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                className="h-7 px-3 text-xs bg-gray-200 text-gray-700 hover:bg-gray-300"
+                disabled={currentUsersPage >= totalUsersPages}
+                onClick={() =>
+                  setUsersPage((prev) => Math.min(totalUsersPages, prev + 1))
+                }
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -592,6 +706,19 @@ const UserManagementSection = () => {
         onClose={closeRoleModal}
         onConfirm={() => {
           void handleRoleChange();
+        }}
+      />
+
+      <UserAccountRemovalModal
+        isOpen={Boolean(removeModalUser)}
+        userName={removeModalUser?.fullName || ""}
+        userEmail={removeModalUser?.email || ""}
+        isLoading={Boolean(
+          removeModalUser && removingUserId === removeModalUser.id,
+        )}
+        onClose={closeRemoveModal}
+        onConfirm={() => {
+          void handleRemoveUser();
         }}
       />
     </div>

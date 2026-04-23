@@ -553,3 +553,15 @@ export async function updateUserRole(
     },
   );
 }
+
+export async function removeUserAccount(userId: number): Promise<{
+  message: string;
+  user: { id: number; fullName: string; email: string };
+}> {
+  return apiRequest<{
+    message: string;
+    user: { id: number; fullName: string; email: string };
+  }>("/auth/users/" + userId, {
+    method: "DELETE",
+  });
+}
