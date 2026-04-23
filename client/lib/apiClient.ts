@@ -493,3 +493,40 @@ export async function getTickets(params?: {
 export async function getTicketStats(): Promise<ApiTicketStats> {
   return apiRequest<ApiTicketStats>("/tickets/stats");
 }
+
+// User Management (Admin only)
+export type ApiSystemUser = {
+  id: number;
+  fullName: string;
+  email: string;
+  staffNo: string;
+  role: string;
+  jobTitle: string;
+  department: { name: string };
+  createdAt: string;
+};
+
+export async function getAllUsers(): Promise<{
+  totalCount: number;
+  users: ApiSystemUser[];
+}> {
+  return apiRequest<{ totalCount: number; users: ApiSystemUser[] }>(
+    "/auth/users",
+  );
+}
+
+export async function updateUserRole(
+  userId: number,
+  role: string,
+): Promise<{
+  message: string;
+  user: ApiSystemUser;
+}> {
+  return apiRequest<{ message: string; user: ApiSystemUser }>(
+    "/auth/users/" + userId + "/role",
+    {
+      method: "PATCH",
+      body: { userId, role },
+    },
+  );
+}

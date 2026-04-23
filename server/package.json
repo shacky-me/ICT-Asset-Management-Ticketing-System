@@ -10,7 +10,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "migrate:fix-admin": "tsx src/migrations/fixAdminRole.ts"
   },
   "keywords": [],
   "author": "",

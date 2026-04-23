@@ -6,6 +6,8 @@ import {
   logout,
   me,
   resetPasswordWithToken,
+  getAllUsers,
+  updateUserRole,
 } from "../controllers/login.controller.js";
 import { authenticateToken } from "../middlewares/auth.middleware.js";
 
@@ -21,5 +23,7 @@ router.post(
   authenticateToken,
   changeTemporaryPassword,
 );
+router.get("/auth/users", authenticateToken, getAllUsers);
+router.patch("/auth/users/:userId/role", authenticateToken, updateUserRole);
 
 export default router;

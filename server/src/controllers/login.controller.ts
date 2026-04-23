@@ -429,3 +429,97 @@ export const resetPasswordWithToken = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const getAllUsers = async (req: AuthRequest, res: Response) => {
+  try {
+    // Only ICT_ADMIN can view all users
+    if (req.user?.role !== "ICT_ADMIN") {
+      return res
+        .status(403)
+        .json({ message: "Unauthorized. Admin access required." });
+    }
+
+    const users = await prisma.user.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        staffNo: true,
+        role: true,
+        jobTitle: true,
+        department: { select: { name: true } },
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.status(200).json({
+      totalCount: users.length,
+      users: users.map((user) => ({
+        ...user,
+        role: user.role === "ICT_ADMIN" ? "ICT Administrator" : "ICT Officer",
+      })),
+    });
+  } catch (error) {
+    console.error("GET ALL USERS ERROR:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateUserRole = async (req: AuthRequest, res: Response) => {
+  try {
+    // Only ICT_ADMIN can update roles
+    if (req.user?.role !== "ICT_ADMIN") {
+      return res
+        .status(403)
+        .json({ message: "Unauthorized. Admin access required." });
+    }
+
+    const { userId, role } = req.body as { userId?: number; role?: string };
+
+    if (!userId || !role) {
+      return res.status(400).json({ message: "User ID and role are required" });
+    }
+
+    // Validate role
+    if (!["ICT_ADMIN", "ICT_OFFICER"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    // Prevent self-demotion
+    if (req.user?.id === userId && role === "ICT_OFFICER") {
+      return res
+        .status(400)
+        .json({ message: "Cannot demote yourself from admin" });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role: role as "ICT_ADMIN" | "ICT_OFFICER" },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        staffNo: true,
+        role: true,
+        jobTitle: true,
+        department: { select: { name: true } },
+      },
+    });
+
+    return res.status(200).json({
+      message: "User role updated successfully",
+      user: {
+        ...updatedUser,
+        role:
+          updatedUser.role === "ICT_ADMIN"
+            ? "ICT Administrator"
+            : "ICT Officer",
+      },
+    });
+  } catch (error) {
+    console.error("UPDATE USER ROLE ERROR:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
