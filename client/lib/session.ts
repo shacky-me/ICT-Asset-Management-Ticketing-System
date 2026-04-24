@@ -17,6 +17,7 @@ const LOCAL_STORAGE_KEY = "ictams.currentUser";
 const SESSION_STORAGE_KEY = "ictams.currentUser.session";
 const LOCAL_AUTH_TOKEN_KEY = "ictams.authToken";
 const SESSION_AUTH_TOKEN_KEY = "ictams.authToken.session";
+const LAST_ACTIVITY_KEY = "ictams.lastActivityAt";
 const USER_EVENT = "ictams:user-changed";
 
 function canUseBrowserStorage() {
@@ -106,6 +107,7 @@ export function saveCurrentUser(
   window.localStorage.removeItem(LOCAL_STORAGE_KEY);
   window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
   targetStorage.setItem(targetKey, JSON.stringify(normalized));
+  touchSessionActivity();
   dispatchUserChanged();
   return normalized;
 }
@@ -117,6 +119,7 @@ export function clearCurrentUser() {
   window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
   window.localStorage.removeItem(LOCAL_AUTH_TOKEN_KEY);
   window.sessionStorage.removeItem(SESSION_AUTH_TOKEN_KEY);
+  window.localStorage.removeItem(LAST_ACTIVITY_KEY);
   dispatchUserChanged();
 }
 
@@ -145,6 +148,7 @@ export function saveAuthToken(
   window.localStorage.removeItem(LOCAL_AUTH_TOKEN_KEY);
   window.sessionStorage.removeItem(SESSION_AUTH_TOKEN_KEY);
   targetStorage.setItem(targetKey, token);
+  touchSessionActivity();
 }
 
 export function clearAuthToken() {
@@ -152,6 +156,22 @@ export function clearAuthToken() {
 
   window.localStorage.removeItem(LOCAL_AUTH_TOKEN_KEY);
   window.sessionStorage.removeItem(SESSION_AUTH_TOKEN_KEY);
+}
+
+export function touchSessionActivity(timestamp = Date.now()) {
+  if (!canUseBrowserStorage()) return;
+  window.localStorage.setItem(LAST_ACTIVITY_KEY, String(timestamp));
+}
+
+export function readSessionActivity(): number | null {
+  if (!canUseBrowserStorage()) return null;
+
+  const raw = window.localStorage.getItem(LAST_ACTIVITY_KEY);
+  if (!raw) return null;
+
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
 }
 
 export function useCurrentUser() {
