@@ -107,6 +107,8 @@ export const login = async (req: Request, res: Response) => {
 
     return res.status(500).json({
       message: "Internal server error",
+      detail: error instanceof Error ? error.message : String(error), 
+    stack: error instanceof Error ? error.stack : undefined 
     });
   }
 };
