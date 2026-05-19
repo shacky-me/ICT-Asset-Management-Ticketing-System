@@ -33,9 +33,6 @@ const pool = new Pool({
   idleTimeoutMillis: 60000, // 60s idle timeout (Render closes after ~900s)
   connectionTimeoutMillis: 20000, // 20s connection timeout
   application_name: "assettracking_server",
-   ssl: {
-    rejectUnauthorized: false, 
-  },
 });
 
 console.log("[Prisma] ✓ PostgreSQL connection pool created");
