@@ -410,6 +410,9 @@ export const approveAccessRequest = async (
 
       return { user, tempPassword };
     });
+console.log("[APPROVAL] Attempting to send temp password to:", result.user.email);
+console.log("[APPROVAL] RESEND_API_KEY present:", !!process.env.RESEND_API_KEY);
+console.log("[APPROVAL] EMAIL_FROM:", process.env.EMAIL_FROM);
 
     await sendAccessEmail({
       to: result.user.email,
