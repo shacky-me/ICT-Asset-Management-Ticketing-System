@@ -1,61 +1,44 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-function resolveSmtpUser(): string {
-  return (
-    process.env.EMAIL_USER?.trim() || process.env.ADMIN_EMAIL?.trim() || ""
-  );
-}
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-function resolveSmtpPass(): string {
-  return process.env.EMAIL_PASS?.trim() || "";
-}
+const FROM_ADDRESS = process.env.EMAIL_FROM || "onboarding@resend.dev";
+const ADMIN_EMAIL =
+  process.env.ADMIN_EMAIL?.trim() || "naomimbugua536@gmail.com";
+const FRONTEND_URL = process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
 
-function createTransporter() {
-  const logOnly = process.env.EMAIL_DEV_LOG_ONLY === "true";
-  if (logOnly) {
-    return {
-      sendMail: async (mailOptions: any) => {
-        console.log("\n=== EMAIL (LOG-ONLY MODE - NOT ACTUALLY SENT) ===");
-        console.log("TO:", mailOptions.to);
-        console.log("FROM:", mailOptions.from);
-        console.log("SUBJECT:", mailOptions.subject);
-        console.log("HTML:", mailOptions.html);
-        console.log("============================================\n");
-        return {
-          messageId: "log-only-" + Date.now(),
-          response: "Log-only mode - email logged",
-        };
-      },
-    } as any;
+// ─── Core send helper ────────────────────────────────────────────────────────
+
+async function send(to: string, subject: string, html: string): Promise<void> {
+  if (process.env.EMAIL_DEV_LOG_ONLY === "true") {
+    console.log("\n=== EMAIL (LOG-ONLY MODE - NOT ACTUALLY SENT) ===");
+    console.log("TO:", to);
+    console.log("FROM:", FROM_ADDRESS);
+    console.log("SUBJECT:", subject);
+    console.log("HTML:", html);
+    console.log("=================================================\n");
+    return;
   }
 
-  const smtpUser = resolveSmtpUser();
-  const smtpPass = resolveSmtpPass();
-
-  if (!smtpUser || !smtpPass) {
-    throw new Error(
-      "Email SMTP is not configured. Set EMAIL_USER and EMAIL_PASS in server/.env.",
-    );
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not set in your environment variables.");
   }
 
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: false,
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to,
+    subject,
+    html,
   });
+
+  if (error) {
+    throw new Error(`Resend error: ${JSON.stringify(error)}`);
+  }
+
+  console.log(`[EMAIL] Sent to ${to} | id: ${data?.id}`);
 }
 
-function resolveAdminRecipient(): string {
-  return (
-    process.env.ADMIN_EMAIL?.trim() ||
-    process.env.EMAIL_USER?.trim() ||
-    "naomimbugua536@gmail.com"
-  );
-}
+// ─── Interfaces ──────────────────────────────────────────────────────────────
 
 interface AccessEmail {
   to: string;
@@ -98,31 +81,24 @@ interface TicketAcknowledgementEmail {
   assignedTo: string;
 }
 
+// ─── Email functions ─────────────────────────────────────────────────────────
+
 export const sendAccessEmail = async ({
   to,
   name,
   tempPassword,
-}: AccessEmail) => {
+}: AccessEmail): Promise<void> => {
   try {
-    const transporter = createTransporter();
-    const frontendUrl =
-      process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
-    const loginUrl = `${frontendUrl}/login`;
-    const fromAddress = resolveSmtpUser();
-
-    const info = await transporter.sendMail({
-      from: fromAddress,
+    await send(
       to,
-      subject: "Your IT Asset System Access",
-      html: `<h2>Hello ${name}</h2>
-             <p>Your account has been created.</p>
-             <p><b>Use this Temporary Password:</b> ${tempPassword}</p>
-             <p><a href="${loginUrl}">Login Here</a></p>`,
-    });
-
-    console.log("Email sent:", info.response);
+      "Your IT Asset System Access",
+      `<h2>Hello ${name}</h2>
+       <p>Your account has been created.</p>
+       <p><b>Temporary Password:</b> ${tempPassword}</p>
+       <p><a href="${FRONTEND_URL}/login">Login Here</a></p>`,
+    );
   } catch (error) {
-    console.error("Error sending access email:", error);
+    console.error("[EMAIL] Error sending access email:", error);
   }
 };
 
@@ -130,28 +106,19 @@ export const sendAdminBootstrapEmail = async ({
   to,
   name,
   tempPassword,
-}: AdminBootstrapEmail) => {
+}: AdminBootstrapEmail): Promise<void> => {
   try {
-    const transporter = createTransporter();
-    const frontendUrl =
-      process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
-    const loginUrl = `${frontendUrl}/login`;
-    const fromAddress = resolveSmtpUser();
-
-    const info = await transporter.sendMail({
-      from: fromAddress,
+    await send(
       to,
-      subject: "Admin Access Created - IT Asset System",
-      html: `<h2>Hello ${name}</h2>
-             <p>Your admin account has been created so you can review and approve access requests.</p>
-             <p><b>Email:</b> ${to}</p>
-             <p><b>Temporary Password:</b> ${tempPassword}</p>
-             <p><a href="${loginUrl}">Log In to Dashboard</a></p>`,
-    });
-
-    console.log("Admin bootstrap email sent:", info.response);
+      "Admin Access Created - IT Asset System",
+      `<h2>Hello ${name}</h2>
+       <p>Your admin account has been created so you can review and approve access requests.</p>
+       <p><b>Email:</b> ${to}</p>
+       <p><b>Temporary Password:</b> ${tempPassword}</p>
+       <p><a href="${FRONTEND_URL}/login">Log In to Dashboard</a></p>`,
+    );
   } catch (error) {
-    console.error("Error sending admin bootstrap email:", error);
+    console.error("[EMAIL] Error sending admin bootstrap email:", error);
   }
 };
 
@@ -161,78 +128,53 @@ export const notifyAdmin = async ({
   department,
   role,
   reason,
-}: AdminNotification) => {
-  const transporter = createTransporter();
-  const recipient = resolveAdminRecipient();
-  const fromAddress = resolveSmtpUser();
-  const frontendUrl =
-    process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
-  const pendingUrl = `${frontendUrl}/login`;
-
-  console.log(
-    `[EMAIL] Sending admin notification from ${fromAddress} to ${recipient}`,
+}: AdminNotification): Promise<void> => {
+  console.log(`[EMAIL] Notifying admin at ${ADMIN_EMAIL}`);
+  await send(
+    ADMIN_EMAIL,
+    "New Access Request Pending",
+    `<h2>New Access Request</h2>
+     <p><b>User:</b> ${fullName}</p>
+     <p><b>Email:</b> ${email}</p>
+     <p><b>Department:</b> ${department}</p>
+     <p><b>Role Requested:</b> ${role}</p>
+     <p><b>Reason:</b> ${reason || "No reason provided"}</p>
+     <p>Please log in to the system to approve this request.</p>
+     <p><a href="${FRONTEND_URL}/login">Go to Dashboard</a></p>`,
   );
-
-  const info = await transporter.sendMail({
-    from: fromAddress,
-    to: recipient,
-    subject: "New Access Request Pending",
-    html: `<h2>New Access Request</h2>
-           <p><b>User:</b> ${fullName}</p>
-           <p><b>Email:</b> ${email}</p>
-           <p><b>Department:</b> ${department}</p>
-           <p><b>Role Requested:</b> ${role}</p>
-           <p><b>Reason:</b> ${reason || "No reason provided"}</p>
-           <p>Please log in to the system to approve this request.</p>
-           <p><a href="${pendingUrl}">Go to Login</a></p>`,
-  });
-
-  console.log("Admin notification sent:", info.response);
 };
 
 export const sendPasswordResetEmail = async ({
   to,
   name,
   resetUrl,
-}: PasswordResetEmail) => {
-  const transporter = createTransporter();
-  const fromAddress = resolveSmtpUser();
-
-  const info = await transporter.sendMail({
-    from: fromAddress,
+}: PasswordResetEmail): Promise<void> => {
+  await send(
     to,
-    subject: "Reset your IT Asset System password",
-    html: `<h2>Hello ${name}</h2>
-             <p>We received a request to reset your password.</p>
-             <p><a href="${resetUrl}">Reset Password</a></p>
-             <p>This link expires in 30 minutes. If you did not request this, you can ignore this email.</p>`,
-  });
-
-  console.log("Password reset email sent:", info.response);
+    "Reset your IT Asset System password",
+    `<h2>Hello ${name}</h2>
+     <p>We received a request to reset your password.</p>
+     <p><a href="${resetUrl}">Reset Password</a></p>
+     <p>This link expires in 30 minutes. If you did not request this, ignore this email.</p>`,
+  );
 };
 
 export const sendAccessRejectedEmail = async ({
   to,
   name,
   reason,
-}: AccessRejectedEmail) => {
+}: AccessRejectedEmail): Promise<void> => {
   try {
-    const transporter = createTransporter();
-    const fromAddress = resolveSmtpUser();
-
-    const info = await transporter.sendMail({
-      from: fromAddress,
+    await send(
       to,
-      subject: "IT Asset System Access Request Update",
-      html: `<h2>Hello ${name}</h2>
-             <p>Your access request was not approved at this time.</p>
-             <p><b>Reason:</b> ${reason || "No reason was provided."}</p>
-             <p>If you need assistance, please contact your administrator.</p>`,
-    });
-
-    console.log("Access rejection email sent:", info.response);
+      "IT Asset System Access Request Update",
+      `<h2>Hello ${name}</h2>
+       <p>Your access request was not approved at this time.</p>
+       <p><b>Reason:</b> ${reason || "No reason was provided."}</p>
+       <p>If you need assistance, please contact your administrator.</p>`,
+    );
   } catch (error) {
-    console.error("Error sending access rejection email:", error);
+    console.error("[EMAIL] Error sending access rejection email:", error);
   }
 };
 
@@ -243,27 +185,21 @@ export const sendTicketAcknowledgementEmail = async ({
   issue,
   department,
   assignedTo,
-}: TicketAcknowledgementEmail) => {
+}: TicketAcknowledgementEmail): Promise<void> => {
   try {
-    const transporter = createTransporter();
-    const fromAddress = resolveSmtpUser();
-
-    const info = await transporter.sendMail({
-      from: fromAddress,
+    await send(
       to,
-      subject: `Ticket ${ticketId} received`,
-      html: `<h2>Hello ${name}</h2>
-             <p>Your ticket has been received by the ICT support team.</p>
-             <p>An ICT Officer or ICT Administrator will review the issue and attend to you.</p>
-             <p><b>Ticket ID:</b> ${ticketId}</p>
-             <p><b>Issue:</b> ${issue}</p>
-             <p><b>Department:</b> ${department}</p>
-             <p><b>Assigned To:</b> ${assignedTo}</p>
-             <p>You can keep using the system while the issue is being handled.</p>`,
-    });
-
-    console.log("Ticket acknowledgment email sent:", info.response);
+      `Ticket ${ticketId} Received`,
+      `<h2>Hello ${name}</h2>
+       <p>Your ticket has been received by the ICT support team.</p>
+       <p>An ICT Officer or ICT Administrator will review the issue and attend to you.</p>
+       <p><b>Ticket ID:</b> ${ticketId}</p>
+       <p><b>Issue:</b> ${issue}</p>
+       <p><b>Department:</b> ${department}</p>
+       <p><b>Assigned To:</b> ${assignedTo}</p>
+       <p>You can keep using the system while the issue is being handled.</p>`,
+    );
   } catch (error) {
-    console.error("Error sending ticket acknowledgement email:", error);
+    console.error("[EMAIL] Error sending ticket acknowledgement email:", error);
   }
 };
