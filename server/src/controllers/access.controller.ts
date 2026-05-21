@@ -11,8 +11,6 @@ import {
 import type { AuthRequest } from "../types/auth.types.js";
 import type { CreateAccessRequestBody } from "../types/access.Request.types.js";
 
-// ─── Role resolver ────────────────────────────────────────────────────────────
-
 function resolveRequestedRole(
   roleRequested?: string,
   role?: string,
@@ -26,20 +24,22 @@ function resolveRequestedRole(
     return roleRequested;
   }
 
-  const normalizedRole = String(role || "")
-    .trim()
-    .toLowerCase();
+  const normalizedRole = String(role || "").trim().toLowerCase();
 
   if (!normalizedRole) return "END_USER";
   if (normalizedRole.includes("admin")) return "ICT_ADMIN";
-  if (normalizedRole.includes("supervisor") || normalizedRole.includes("hod")) return "SUPERVISOR";
-  if (normalizedRole.includes("officer") || normalizedRole.includes("ict")) return "ICT_OFFICER";
-  if (normalizedRole.includes("staff") || normalizedRole.includes("end user")) return "END_USER";
+  if (normalizedRole.includes("supervisor") || normalizedRole.includes("hod")) {
+    return "SUPERVISOR";
+  }
+  if (normalizedRole.includes("officer") || normalizedRole.includes("ict")) {
+    return "ICT_OFFICER";
+  }
+  if (normalizedRole.includes("staff") || normalizedRole.includes("end user")) {
+    return "END_USER";
+  }
 
   return null;
 }
-
-// ─── Fetch all active ICT_ADMIN users from the database ───────────────────────
 
 async function getAllAdmins(): Promise<{ email: string; fullName: string }[]> {
   return prisma.user.findMany({
@@ -47,8 +47,6 @@ async function getAllAdmins(): Promise<{ email: string; fullName: string }[]> {
     select: { email: true, fullName: true },
   });
 }
-
-// ─── Notify every admin in the system ────────────────────────────────────────
 
 async function notifyAllAdmins(payload: {
   fullName: string;
@@ -60,11 +58,9 @@ async function notifyAllAdmins(payload: {
   const admins = await getAllAdmins();
 
   if (admins.length === 0) {
-    console.warn("[EMAIL] ⚠️ No active ICT_ADMIN users found to notify.");
+    console.warn("[EMAIL] No active ICT_ADMIN users found to notify.");
     return;
   }
-
-  console.log(`[EMAIL] Notifying ${admins.length} admin(s)...`);
 
   await Promise.allSettled(
     admins.map((admin) =>
@@ -74,7 +70,7 @@ async function notifyAllAdmins(payload: {
         ...payload,
       }).catch((err) =>
         console.error(
-          `[EMAIL] ❌ Failed to notify admin ${admin.email}:`,
+          `[EMAIL] Failed to notify admin ${admin.email}:`,
           err instanceof Error ? err.message : err,
         ),
       ),
@@ -82,15 +78,10 @@ async function notifyAllAdmins(payload: {
   );
 }
 
-// ─── Controllers ─────────────────────────────────────────────────────────────
-
 export const createAccessRequest = async (
   req: AuthRequest<CreateAccessRequestBody>,
   res: Response,
 ) => {
-  console.log("[ACCESS] POST /api/access-request received");
-  console.log("[ACCESS] Request body:", req.body);
-
   try {
     const {
       fullName,
@@ -108,6 +99,9 @@ export const createAccessRequest = async (
       department?: string;
       role?: string;
     };
+
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const resolvedStaffNo = String(staffNo || staffNumber || "").trim();
 
     const resolvedDepartmentId =
       typeof departmentId === "number"
@@ -127,6 +121,7 @@ export const createAccessRequest = async (
     }
 
     const resolvedRole = resolveRequestedRole(roleRequested, role);
+
     if (!resolvedRole) {
       return res.status(400).json({
         message:
@@ -134,20 +129,17 @@ export const createAccessRequest = async (
       });
     }
 
-    const resolvedStaffNo = staffNo || staffNumber;
-    if (!fullName || !resolvedStaffNo || !jobTitle || !email) {
+    if (!fullName || !resolvedStaffNo || !jobTitle || !normalizedEmail) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const existing = await prisma.accessRequest.findFirst({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizedEmail },
       include: { department: true },
     });
 
     if (existing && !existing.approved) {
-      // Re-notify all admins for already-pending requests
       try {
-        console.log("[ACCESS] Request already pending — re-notifying all admins...");
         await notifyAllAdmins({
           fullName: existing.fullName,
           email: existing.email,
@@ -166,6 +158,7 @@ export const createAccessRequest = async (
           "[ACCESS] Re-notify Admin Error:",
           notifyError instanceof Error ? notifyError.message : notifyError,
         );
+
         return res.status(200).json({
           message:
             "Request already submitted and pending approval. Failed to re-notify admin.",
@@ -185,7 +178,7 @@ export const createAccessRequest = async (
         fullName,
         staffNo: resolvedStaffNo,
         jobTitle,
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         departmentId: resolvedDepartmentId,
         roleRequested: resolvedRole,
         reason: reason || "",
@@ -193,16 +186,14 @@ export const createAccessRequest = async (
       },
     });
 
-    console.log("[ACCESS] About to notify all admins...");
     try {
       await notifyAllAdmins({
         fullName,
-        email,
+        email: normalizedEmail,
         department: department ?? "Unknown department",
         role: resolvedRole,
         reason: reason || "No reason provided",
       });
-      console.log("[ACCESS] Admin notification completed successfully");
     } catch (notifyError) {
       console.error(
         "[ACCESS] Notify Admin Error:",
@@ -232,7 +223,7 @@ export const getPendingAccessRequests = async (
     });
 
     return res.status(200).json({
-      requests: requests.map((request: any) => ({
+      requests: requests.map((request) => ({
         id: request.id,
         fullName: request.fullName,
         staffNo: request.staffNo,
@@ -246,9 +237,9 @@ export const getPendingAccessRequests = async (
     });
   } catch (error) {
     console.error("Pending Requests Error:", error);
-    return res
-      .status(500)
-      .json({ message: "Failed to load pending access requests" });
+    return res.status(500).json({
+      message: "Failed to load pending access requests",
+    });
   }
 };
 
@@ -258,6 +249,7 @@ export const approveAccessRequest = async (
 ) => {
   const requestIdFromBody = Number(req.body?.requestId);
   const requestIdFromParams = Number(req.params?.requestId);
+
   const requestId = Number.isFinite(requestIdFromParams)
     ? requestIdFromParams
     : requestIdFromBody;
@@ -267,12 +259,14 @@ export const approveAccessRequest = async (
   }
 
   try {
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx) => {
       const request = await tx.accessRequest.findUnique({
         where: { id: requestId },
       });
-      if (!request || request.approved)
+
+      if (!request || request.approved) {
         throw new Error("Invalid request or already approved");
+      }
 
       const normalizedEmail = String(request.email).trim().toLowerCase();
       const normalizedStaffNo = String(request.staffNo).trim();
@@ -280,6 +274,7 @@ export const approveAccessRequest = async (
       const existingByEmail = await tx.user.findUnique({
         where: { email: normalizedEmail },
       });
+
       const existingByStaffNo = await tx.user.findUnique({
         where: { staffNo: normalizedStaffNo },
       });
@@ -295,8 +290,9 @@ export const approveAccessRequest = async (
       }
 
       const existingUser = existingByEmail || existingByStaffNo;
+
       const tempPassword = generateTempPassword();
-      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      const hashedPassword = await bcrypt.hash(tempPassword.trim(), 10);
 
       const user = existingUser
         ? await tx.user.update({
@@ -322,6 +318,7 @@ export const approveAccessRequest = async (
               password: hashedPassword,
               role: request.roleRequested,
               departmentId: request.departmentId,
+              isActive: true,
               mustChangePassword: true,
             },
           });
@@ -334,10 +331,11 @@ export const approveAccessRequest = async (
       return { user, tempPassword };
     });
 
-    // ── Send temp password to the approved user ──────────────────────────────
-    console.log("[APPROVAL] Sending access email to:", result.user.email);
-    console.log("[APPROVAL] BREVO_API_KEY present:", !!process.env.BREVO_API_KEY);
-    console.log("[APPROVAL] EMAIL_FROM:", process.env.EMAIL_FROM);
+    console.log("[APPROVAL] User approved:", {
+      email: result.user.email,
+      mustChangePassword: result.user.mustChangePassword,
+      tempPasswordLength: result.tempPassword.length,
+    });
 
     try {
       await sendAccessEmail({
@@ -345,18 +343,31 @@ export const approveAccessRequest = async (
         name: result.user.fullName,
         tempPassword: result.tempPassword,
       });
-      console.log("[APPROVAL] ✅ Access email sent successfully to:", result.user.email);
+
+      console.log("[APPROVAL] Access email sent to:", result.user.email);
     } catch (emailError) {
       console.error(
-        "[APPROVAL] ❌ Failed to send access email to:", result.user.email,
-        "| Error:", emailError instanceof Error ? emailError.message : emailError,
+        "[APPROVAL] Failed to send access email to:",
+        result.user.email,
+        "| Error:",
+        emailError instanceof Error ? emailError.message : emailError,
       );
     }
 
-    return res.json({ message: "User approved and created" });
+    return res.status(200).json({
+      message: "User approved and temporary password sent",
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        fullName: result.user.fullName,
+        mustChangePassword: result.user.mustChangePassword,
+      },
+    });
   } catch (error) {
     console.error("Approval Error:", error);
+
     const message = error instanceof Error ? error.message : "Approval failed";
+
     return res.status(500).json({ message });
   }
 };
@@ -367,6 +378,7 @@ export const rejectAccessRequest = async (
 ) => {
   const requestIdFromBody = Number(req.body?.requestId);
   const requestIdFromParams = Number(req.params?.requestId);
+
   const requestId = Number.isFinite(requestIdFromParams)
     ? requestIdFromParams
     : requestIdFromBody;
@@ -388,18 +400,18 @@ export const rejectAccessRequest = async (
 
     await prisma.accessRequest.delete({ where: { id: requestId } });
 
-    console.log("[REJECT] Sending rejection email to:", request.email);
     try {
       await sendAccessRejectedEmail({
         to: request.email,
         name: request.fullName,
         reason: rejectionReason,
       });
-      console.log("[REJECT] ✅ Rejection email sent to:", request.email);
     } catch (emailError) {
       console.error(
-        "[REJECT] ❌ Failed to send rejection email to:", request.email,
-        "| Error:", emailError instanceof Error ? emailError.message : emailError,
+        "[REJECT] Failed to send rejection email to:",
+        request.email,
+        "| Error:",
+        emailError instanceof Error ? emailError.message : emailError,
       );
     }
 
@@ -408,8 +420,10 @@ export const rejectAccessRequest = async (
     });
   } catch (error) {
     console.error("Reject Request Error:", error);
+
     const message =
       error instanceof Error ? error.message : "Failed to reject request";
+
     return res.status(500).json({ message });
   }
 };

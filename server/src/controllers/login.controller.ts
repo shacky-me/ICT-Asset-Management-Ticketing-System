@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import jwt, { type Secret, type SignOptions } from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 import { prisma } from "../prisma.js";
 import type { AuthRequest } from "../types/auth.types.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";
@@ -14,25 +14,51 @@ function toRoleLabel(role: string): string {
 }
 
 function isAdminRole(role: string): boolean {
-  return (
-    String(role || "")
-      .trim()
-      .toUpperCase() === "ICT_ADMIN"
+  return String(role || "").trim().toUpperCase() === "ICT_ADMIN";
+}
+
+function createAuthToken(user: {
+  id: number;
+  role: string;
+  departmentId: number;
+}): string {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error("JWT_SECRET is not defined");
+  }
+
+  const tokenTtl = (process.env.JWT_EXPIRES_IN?.trim() ||
+    "7d") as NonNullable<SignOptions["expiresIn"]>;
+
+  return jwt.sign(
+    {
+      id: user.id,
+      role: user.role,
+      departmentId: user.departmentId,
+    },
+    secret,
+    { expiresIn: tokenTtl },
   );
 }
+
 export const login = async (req: Request, res: Response) => {
   try {
     const { identifier, email, password } = req.body;
+
     const normalizedIdentifier = String(identifier || email || "")
       .trim()
       .toLowerCase();
-    const rawIdentifier = String(identifier || email || "").trim();
 
-    if (!normalizedIdentifier || !password) {
+    const rawIdentifier = String(identifier || email || "").trim();
+    const cleanPassword = String(password || "").trim();
+
+    if (!normalizedIdentifier || !cleanPassword) {
       return res.status(400).json({
         message: "Identifier and password are required",
       });
     }
+
     const user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -52,46 +78,45 @@ export const login = async (req: Request, res: Response) => {
         message: "Invalid email or password",
       });
     }
+
     if (!user.isActive) {
       return res.status(403).json({
         message: "Account not yet authorized. Contact administrator.",
       });
     }
 
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    const passwordMatch = await bcrypt.compare(cleanPassword, user.password);
 
     if (!passwordMatch) {
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
-    const secret = process.env.JWT_SECRET;
 
-    if (!secret) {
-      throw new Error("JWT_SECRET is not defined");
-    }
-
-    const tokenTtl = (process.env.JWT_EXPIRES_IN?.trim() ||
-      "7d") as NonNullable<SignOptions["expiresIn"]>;
-    const options: SignOptions = {
-      expiresIn: tokenTtl,
-    };
-
-    const token = jwt.sign(
-      {
-        id: user.id,
-        role: user.role,
-        departmentId: user.departmentId,
-      },
-      secret,
-      options,
-    );
-
+    const token = createAuthToken(user);
     const mappedRole = toRoleLabel(user.role);
+
+    if (user.mustChangePassword) {
+      return res.status(200).json({
+        message: "Temporary password accepted. Please change your password.",
+        token,
+        mustChangePassword: true,
+        user: {
+          id: user.id,
+          name: user.fullName,
+          email: user.email,
+          role: mappedRole,
+          department: user.department.name,
+          staffNumber: user.staffNo,
+          mustChangePassword: true,
+        },
+      });
+    }
 
     return res.status(200).json({
       message: "Login successful",
       token,
+      mustChangePassword: false,
       user: {
         id: user.id,
         name: user.fullName,
@@ -99,7 +124,7 @@ export const login = async (req: Request, res: Response) => {
         role: mappedRole,
         department: user.department.name,
         staffNumber: user.staffNo,
-        mustChangePassword: user.mustChangePassword,
+        mustChangePassword: false,
       },
     });
   } catch (error) {
@@ -107,8 +132,7 @@ export const login = async (req: Request, res: Response) => {
 
     return res.status(500).json({
       message: "Internal server error",
-      detail: error instanceof Error ? error.message : String(error), 
-    stack: error instanceof Error ? error.stack : undefined 
+      detail: error instanceof Error ? error.message : String(error),
     });
   }
 };
@@ -120,6 +144,7 @@ export const logout = async (_req: Request, res: Response) => {
 export const me = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
+
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -158,10 +183,9 @@ export const changeTemporaryPassword = async (
 ) => {
   try {
     const userId = req.user?.id;
-    const { currentPassword, newPassword } = req.body as {
-      currentPassword?: string;
-      newPassword?: string;
-    };
+
+    const currentPassword = String(req.body?.currentPassword || "").trim();
+    const newPassword = String(req.body?.newPassword || "").trim();
 
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -173,7 +197,7 @@ export const changeTemporaryPassword = async (
       });
     }
 
-    if (String(newPassword).trim().length < 8) {
+    if (newPassword.length < 8) {
       return res.status(400).json({
         message: "New password must be at least 8 characters",
       });
@@ -189,11 +213,15 @@ export const changeTemporaryPassword = async (
     }
 
     const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+
     if (!passwordMatch) {
-      return res.status(401).json({ message: "Current password is incorrect" });
+      return res.status(401).json({
+        message: "Current password is incorrect",
+      });
     }
 
     const sameAsCurrent = await bcrypt.compare(newPassword, user.password);
+
     if (sameAsCurrent) {
       return res.status(400).json({
         message: "New password must be different from current password",
@@ -201,6 +229,7 @@ export const changeTemporaryPassword = async (
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -210,10 +239,13 @@ export const changeTemporaryPassword = async (
       include: { department: true },
     });
 
+    const token = createAuthToken(updatedUser);
     const mappedRole = toRoleLabel(updatedUser.role);
 
     return res.status(200).json({
       message: "Password updated successfully",
+      token,
+      mustChangePassword: false,
       user: {
         id: updatedUser.id,
         name: updatedUser.fullName,
@@ -221,7 +253,7 @@ export const changeTemporaryPassword = async (
         role: mappedRole,
         department: updatedUser.department.name,
         staffNumber: updatedUser.staffNo,
-        mustChangePassword: updatedUser.mustChangePassword,
+        mustChangePassword: false,
       },
     });
   } catch (error) {
@@ -232,9 +264,8 @@ export const changeTemporaryPassword = async (
 
 export const forgotPassword = async (req: Request, res: Response) => {
   try {
-    const email = String(req.body?.email || "")
-      .trim()
-      .toLowerCase();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
     }
@@ -287,7 +318,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
         });
 
         if (existingByStaffNo) {
-          const recovered = await prisma.user.update({
+          user = await prisma.user.update({
             where: { id: existingByStaffNo.id },
             data: {
               email: approvedRequest.email.trim().toLowerCase(),
@@ -305,15 +336,10 @@ export const forgotPassword = async (req: Request, res: Response) => {
               staffNo: true,
             },
           });
-
-          user = recovered;
         } else {
-          const tempPasswordHash = await bcrypt.hash(
-            generateTempPassword(),
-            10,
-          );
+          const tempPasswordHash = await bcrypt.hash(generateTempPassword(), 10);
 
-          const created = await prisma.user.create({
+          user = await prisma.user.create({
             data: {
               fullName: approvedRequest.fullName,
               staffNo: approvedRequest.staffNo,
@@ -333,14 +359,13 @@ export const forgotPassword = async (req: Request, res: Response) => {
               staffNo: true,
             },
           });
-
-          user = created;
         }
       }
     }
 
     if (user?.isActive) {
       const resetSecret = process.env.JWT_SECRET;
+
       if (!resetSecret) {
         throw new Error("JWT_SECRET is not defined");
       }
@@ -353,7 +378,10 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
       const frontendUrl =
         process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
-      const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
+
+      const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(
+        resetToken,
+      )}`;
 
       await sendPasswordResetEmail({
         to: user.email,
@@ -363,8 +391,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     }
 
     return res.status(200).json({
-      message:
-        "If an account exists for this email, a reset link has been sent.",
+      message: "If an account exists for this email, a reset link has been sent.",
     });
   } catch (error) {
     console.error("FORGOT PASSWORD ERROR:", error);
@@ -378,18 +405,19 @@ export const resetPasswordWithToken = async (req: Request, res: Response) => {
     const newPassword = String(req.body?.newPassword || "").trim();
 
     if (!token || !newPassword) {
-      return res
-        .status(400)
-        .json({ message: "Token and new password are required" });
+      return res.status(400).json({
+        message: "Token and new password are required",
+      });
     }
 
     if (newPassword.length < 8) {
-      return res
-        .status(400)
-        .json({ message: "New password must be at least 8 characters" });
+      return res.status(400).json({
+        message: "New password must be at least 8 characters",
+      });
     }
 
     const secret = process.env.JWT_SECRET;
+
     if (!secret) {
       throw new Error("JWT_SECRET is not defined");
     }
@@ -414,6 +442,7 @@ export const resetPasswordWithToken = async (req: Request, res: Response) => {
     }
 
     const sameAsCurrent = await bcrypt.compare(newPassword, user.password);
+
     if (sameAsCurrent) {
       return res.status(400).json({
         message: "New password must be different from current password",
@@ -421,6 +450,7 @@ export const resetPasswordWithToken = async (req: Request, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -434,6 +464,7 @@ export const resetPasswordWithToken = async (req: Request, res: Response) => {
     if (error instanceof jwt.TokenExpiredError) {
       return res.status(400).json({ message: "Reset link has expired" });
     }
+
     if (error instanceof jwt.JsonWebTokenError) {
       return res.status(400).json({ message: "Invalid reset token" });
     }
@@ -445,11 +476,10 @@ export const resetPasswordWithToken = async (req: Request, res: Response) => {
 
 export const getAllUsers = async (req: AuthRequest, res: Response) => {
   try {
-    // Only ICT_ADMIN can view all users
     if (!isAdminRole(String(req.user?.role || ""))) {
-      return res
-        .status(403)
-        .json({ message: "Unauthorized. Admin access required." });
+      return res.status(403).json({
+        message: "Unauthorized. Admin access required.",
+      });
     }
 
     const users = await prisma.user.findMany({
@@ -521,31 +551,33 @@ export const getSupportStaff = async (req: AuthRequest, res: Response) => {
 
 export const updateUserRole = async (req: AuthRequest, res: Response) => {
   try {
-    // Only ICT_ADMIN can update roles
     if (!isAdminRole(String(req.user?.role || ""))) {
-      return res
-        .status(403)
-        .json({ message: "Unauthorized. Admin access required." });
+      return res.status(403).json({
+        message: "Unauthorized. Admin access required.",
+      });
     }
 
-    const { userId, role } = req.body as { userId?: number; role?: string };
+    const { userId, role } = req.body as {
+      userId?: number;
+      role?: string;
+    };
 
     if (!userId || !role) {
-      return res.status(400).json({ message: "User ID and role are required" });
+      return res.status(400).json({
+        message: "User ID and role are required",
+      });
     }
 
     const allowedRoles = ["END_USER", "SUPERVISOR", "ICT_OFFICER", "ICT_ADMIN"];
 
-    // Validate role
     if (!allowedRoles.includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
     }
 
-    // Prevent accidental self lockout from admin-only operations.
     if (req.user?.id === userId && role !== "ICT_ADMIN") {
-      return res
-        .status(400)
-        .json({ message: "Cannot change your own role from administrator" });
+      return res.status(400).json({
+        message: "Cannot change your own role from administrator",
+      });
     }
 
     const updatedUser = await prisma.user.update({
@@ -580,20 +612,21 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
 export const removeUserAccount = async (req: AuthRequest, res: Response) => {
   try {
     if (!isAdminRole(String(req.user?.role || ""))) {
-      return res
-        .status(403)
-        .json({ message: "Unauthorized. Admin access required." });
+      return res.status(403).json({
+        message: "Unauthorized. Admin access required.",
+      });
     }
 
     const userId = Number(req.params?.userId || req.body?.userId);
+
     if (!Number.isFinite(userId)) {
       return res.status(400).json({ message: "Valid userId is required" });
     }
 
     if (req.user?.id === userId) {
-      return res
-        .status(400)
-        .json({ message: "You cannot remove your own account" });
+      return res.status(400).json({
+        message: "You cannot remove your own account",
+      });
     }
 
     const existingUser = await prisma.user.findUnique({
