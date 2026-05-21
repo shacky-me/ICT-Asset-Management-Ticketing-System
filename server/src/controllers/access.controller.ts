@@ -11,6 +11,8 @@ import {
 import type { AuthRequest } from "../types/auth.types.js";
 import type { CreateAccessRequestBody } from "../types/access.Request.types.js";
 
+// ─── Role resolver ────────────────────────────────────────────────────────────
+
 function resolveRequestedRole(
   roleRequested?: string,
   role?: string,
@@ -28,114 +30,59 @@ function resolveRequestedRole(
     .trim()
     .toLowerCase();
 
-  if (!normalizedRole) {
-    return "END_USER";
-  }
-
-  if (normalizedRole.includes("admin")) {
-    return "ICT_ADMIN";
-  }
-
-  if (normalizedRole.includes("supervisor") || normalizedRole.includes("hod")) {
-    return "SUPERVISOR";
-  }
-
-  if (normalizedRole.includes("officer") || normalizedRole.includes("ict")) {
-    return "ICT_OFFICER";
-  }
-
-  if (normalizedRole.includes("staff") || normalizedRole.includes("end user")) {
-    return "END_USER";
-  }
+  if (!normalizedRole) return "END_USER";
+  if (normalizedRole.includes("admin")) return "ICT_ADMIN";
+  if (normalizedRole.includes("supervisor") || normalizedRole.includes("hod")) return "SUPERVISOR";
+  if (normalizedRole.includes("officer") || normalizedRole.includes("ict")) return "ICT_OFFICER";
+  if (normalizedRole.includes("staff") || normalizedRole.includes("end user")) return "END_USER";
 
   return null;
 }
 
-async function resolveUniqueAdminStaffNo(baseStaffNo: string): Promise<string> {
-  const normalized = baseStaffNo.trim() || "ICTADMIN001";
-  let candidate = normalized;
-  let suffix = 1;
+// ─── Fetch all active ICT_ADMIN users from the database ───────────────────────
 
-  while (true) {
-    const existing = await prisma.user.findUnique({
-      where: { staffNo: candidate },
-      select: { id: true },
-    });
-
-    if (!existing) {
-      return candidate;
-    }
-
-    candidate = `${normalized}-${suffix}`;
-    suffix += 1;
-  }
-}
-
-async function ensureAdminAccountExists(): Promise<{
-  created: boolean;
-  email: string;
-  fullName: string;
-  tempPassword?: string;
-}> {
-  const adminEmail =
-    process.env.ADMIN_EMAIL?.trim().toLowerCase() ||
-    process.env.EMAIL_USER?.trim().toLowerCase() ||
-    "";
-
-  if (!adminEmail) {
-    throw new Error("ADMIN_EMAIL or EMAIL_USER must be configured");
-  }
-
-  const existingAdmin = await prisma.user.findUnique({
-    where: { email: adminEmail },
+async function getAllAdmins(): Promise<{ email: string; fullName: string }[]> {
+  return prisma.user.findMany({
+    where: { role: "ICT_ADMIN", isActive: true },
     select: { email: true, fullName: true },
   });
+}
 
-  if (existingAdmin) {
-    return {
-      created: false,
-      email: existingAdmin.email,
-      fullName: existingAdmin.fullName,
-    };
+// ─── Notify every admin in the system ────────────────────────────────────────
+
+async function notifyAllAdmins(payload: {
+  fullName: string;
+  email: string;
+  department: string;
+  role: string;
+  reason?: string;
+}): Promise<void> {
+  const admins = await getAllAdmins();
+
+  if (admins.length === 0) {
+    console.warn("[EMAIL] ⚠️ No active ICT_ADMIN users found to notify.");
+    return;
   }
 
-  const departmentName = process.env.ADMIN_DEPARTMENT?.trim() || "IT Support";
-  const adminName = process.env.ADMIN_NAME?.trim() || "System Administrator";
-  const adminJobTitle =
-    process.env.ADMIN_JOB_TITLE?.trim() || "ICT Administrator";
-  const adminStaffNoBase = process.env.ADMIN_STAFF_NO?.trim() || "ICTADMIN001";
+  console.log(`[EMAIL] Notifying ${admins.length} admin(s)...`);
 
-  const department = await prisma.department.upsert({
-    where: { name: departmentName },
-    update: {},
-    create: { name: departmentName },
-  });
-
-  const staffNo = await resolveUniqueAdminStaffNo(adminStaffNoBase);
-  const tempPassword = generateTempPassword();
-  const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
-  const createdAdmin = await prisma.user.create({
-    data: {
-      fullName: adminName,
-      staffNo,
-      jobTitle: adminJobTitle,
-      email: adminEmail,
-      password: hashedPassword,
-      role: "ICT_ADMIN",
-      departmentId: department.id,
-      isActive: true,
-      mustChangePassword: true,
-    },
-  });
-
-  return {
-    created: true,
-    email: createdAdmin.email,
-    fullName: createdAdmin.fullName,
-    tempPassword,
-  };
+  await Promise.allSettled(
+    admins.map((admin) =>
+      notifyAdmin({
+        adminEmail: admin.email,
+        adminName: admin.fullName,
+        ...payload,
+      }).catch((err) =>
+        console.error(
+          `[EMAIL] ❌ Failed to notify admin ${admin.email}:`,
+          err instanceof Error ? err.message : err,
+        ),
+      ),
+    ),
+  );
 }
+
+// ─── Controllers ─────────────────────────────────────────────────────────────
 
 export const createAccessRequest = async (
   req: AuthRequest<CreateAccessRequestBody>,
@@ -143,6 +90,7 @@ export const createAccessRequest = async (
 ) => {
   console.log("[ACCESS] POST /api/access-request received");
   console.log("[ACCESS] Request body:", req.body);
+
   try {
     const {
       fullName,
@@ -179,7 +127,6 @@ export const createAccessRequest = async (
     }
 
     const resolvedRole = resolveRequestedRole(roleRequested, role);
-
     if (!resolvedRole) {
       return res.status(400).json({
         message:
@@ -188,7 +135,6 @@ export const createAccessRequest = async (
     }
 
     const resolvedStaffNo = staffNo || staffNumber;
-
     if (!fullName || !resolvedStaffNo || !jobTitle || !email) {
       return res.status(400).json({ message: "Missing required fields" });
     }
@@ -197,19 +143,12 @@ export const createAccessRequest = async (
       where: { email: email.toLowerCase() },
       include: { department: true },
     });
-    if (existing && !existing.approved) {
-      // Re-notify admin for already-pending requests to avoid missed emails.
-      try {
-        const adminAccount = await ensureAdminAccountExists();
-        if (adminAccount.created && adminAccount.tempPassword) {
-          await sendAdminBootstrapEmail({
-            to: adminAccount.email,
-            name: adminAccount.fullName,
-            tempPassword: adminAccount.tempPassword,
-          });
-        }
 
-        await notifyAdmin({
+    if (existing && !existing.approved) {
+      // Re-notify all admins for already-pending requests
+      try {
+        console.log("[ACCESS] Request already pending — re-notifying all admins...");
+        await notifyAllAdmins({
           fullName: existing.fullName,
           email: existing.email,
           department: existing.department?.name ?? "Unknown department",
@@ -227,7 +166,6 @@ export const createAccessRequest = async (
           "[ACCESS] Re-notify Admin Error:",
           notifyError instanceof Error ? notifyError.message : notifyError,
         );
-
         return res.status(200).json({
           message:
             "Request already submitted and pending approval. Failed to re-notify admin.",
@@ -255,25 +193,9 @@ export const createAccessRequest = async (
       },
     });
 
-    console.log("[ACCESS] About to notify admin...");
+    console.log("[ACCESS] About to notify all admins...");
     try {
-      const adminAccount = await ensureAdminAccountExists();
-      if (adminAccount.created && adminAccount.tempPassword) {
-        await sendAdminBootstrapEmail({
-          to: adminAccount.email,
-          name: adminAccount.fullName,
-          tempPassword: adminAccount.tempPassword,
-        });
-      }
-
-      console.log("[ACCESS] Calling notifyAdmin with:", {
-        fullName,
-        email,
-        department: department ?? "Unknown department",
-        role: resolvedRole,
-        reason: reason || "No reason provided",
-      });
-      await notifyAdmin({
+      await notifyAllAdmins({
         fullName,
         email,
         department: department ?? "Unknown department",
@@ -375,6 +297,7 @@ export const approveAccessRequest = async (
       const existingUser = existingByEmail || existingByStaffNo;
       const tempPassword = generateTempPassword();
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
       const user = existingUser
         ? await tx.user.update({
             where: { id: existingUser.id },
@@ -410,15 +333,25 @@ export const approveAccessRequest = async (
 
       return { user, tempPassword };
     });
-console.log("[APPROVAL] Attempting to send temp password to:", result.user.email);
-console.log("[APPROVAL] RESEND_API_KEY present:", !!process.env.RESEND_API_KEY);
-console.log("[APPROVAL] EMAIL_FROM:", process.env.EMAIL_FROM);
 
-    await sendAccessEmail({
-      to: result.user.email,
-      name: result.user.fullName,
-      tempPassword: result.tempPassword,
-    });
+    // ── Send temp password to the approved user ──────────────────────────────
+    console.log("[APPROVAL] Sending access email to:", result.user.email);
+    console.log("[APPROVAL] BREVO_API_KEY present:", !!process.env.BREVO_API_KEY);
+    console.log("[APPROVAL] EMAIL_FROM:", process.env.EMAIL_FROM);
+
+    try {
+      await sendAccessEmail({
+        to: result.user.email,
+        name: result.user.fullName,
+        tempPassword: result.tempPassword,
+      });
+      console.log("[APPROVAL] ✅ Access email sent successfully to:", result.user.email);
+    } catch (emailError) {
+      console.error(
+        "[APPROVAL] ❌ Failed to send access email to:", result.user.email,
+        "| Error:", emailError instanceof Error ? emailError.message : emailError,
+      );
+    }
 
     return res.json({ message: "User approved and created" });
   } catch (error) {
@@ -455,11 +388,20 @@ export const rejectAccessRequest = async (
 
     await prisma.accessRequest.delete({ where: { id: requestId } });
 
-    await sendAccessRejectedEmail({
-      to: request.email,
-      name: request.fullName,
-      reason: rejectionReason,
-    });
+    console.log("[REJECT] Sending rejection email to:", request.email);
+    try {
+      await sendAccessRejectedEmail({
+        to: request.email,
+        name: request.fullName,
+        reason: rejectionReason,
+      });
+      console.log("[REJECT] ✅ Rejection email sent to:", request.email);
+    } catch (emailError) {
+      console.error(
+        "[REJECT] ❌ Failed to send rejection email to:", request.email,
+        "| Error:", emailError instanceof Error ? emailError.message : emailError,
+      );
+    }
 
     return res.status(200).json({
       message: "Request rejected and applicant notified",

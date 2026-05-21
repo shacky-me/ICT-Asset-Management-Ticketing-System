@@ -1,10 +1,12 @@
-import { Resend } from "resend";
+import { TransactionalEmailsClient } from "@getbrevo/brevo/transactionalEmails";
+import type { SendTransacEmailRequest } from "@getbrevo/brevo/transactionalEmails";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const client = new TransactionalEmailsClient({
+  apiKey: process.env.BREVO_API_KEY || "",
+});
 
-const FROM_ADDRESS = process.env.EMAIL_FROM || "onboarding@resend.dev";
-const ADMIN_EMAIL =
-  process.env.ADMIN_EMAIL?.trim() || "naomimbugua536@gmail.com";
+const FROM_EMAIL = process.env.EMAIL_FROM?.trim() || "naomimbugua536@gmail.com";
+const FROM_NAME = process.env.EMAIL_FROM_NAME?.trim() || "IT Asset System";
 const FRONTEND_URL = process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
 
 // ─── Core send helper ────────────────────────────────────────────────────────
@@ -13,29 +15,26 @@ async function send(to: string, subject: string, html: string): Promise<void> {
   if (process.env.EMAIL_DEV_LOG_ONLY === "true") {
     console.log("\n=== EMAIL (LOG-ONLY MODE - NOT ACTUALLY SENT) ===");
     console.log("TO:", to);
-    console.log("FROM:", FROM_ADDRESS);
+    console.log("FROM:", FROM_EMAIL);
     console.log("SUBJECT:", subject);
     console.log("HTML:", html);
     console.log("=================================================\n");
     return;
   }
 
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is not set in your environment variables.");
+  if (!process.env.BREVO_API_KEY) {
+    throw new Error("BREVO_API_KEY is not set in your environment variables.");
   }
 
-  const { data, error } = await resend.emails.send({
-    from: FROM_ADDRESS,
-    to,
+  const payload: SendTransacEmailRequest = {
+    sender: { email: FROM_EMAIL, name: FROM_NAME },
+    to: [{ email: to }],
     subject,
-    html,
-  });
+    htmlContent: html,
+  };
 
-  if (error) {
-    throw new Error(`Resend error: ${JSON.stringify(error)}`);
-  }
-
-  console.log(`[EMAIL] Sent to ${to} | id: ${data?.id}`);
+  const result = await client.sendTransacEmail(payload);
+  console.log(`[EMAIL] ✅ Sent to ${to} | messageId: ${result.messageId ?? "ok"}`);
 }
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
@@ -53,6 +52,8 @@ interface AdminBootstrapEmail {
 }
 
 interface AdminNotification {
+  adminEmail: string;
+  adminName: string;
   fullName: string;
   email: string;
   department: string;
@@ -93,12 +94,13 @@ export const sendAccessEmail = async ({
       to,
       "Your IT Asset System Access",
       `<h2>Hello ${name}</h2>
-       <p>Your account has been created.</p>
+       <p>Your account has been approved and created.</p>
        <p><b>Temporary Password:</b> ${tempPassword}</p>
+       <p>You will be asked to change your password on first login.</p>
        <p><a href="${FRONTEND_URL}/login">Login Here</a></p>`,
     );
   } catch (error) {
-    console.error("[EMAIL] Error sending access email:", error);
+    console.error("[EMAIL] ❌ Error sending access email to", to, ":", error);
   }
 };
 
@@ -118,28 +120,31 @@ export const sendAdminBootstrapEmail = async ({
        <p><a href="${FRONTEND_URL}/login">Log In to Dashboard</a></p>`,
     );
   } catch (error) {
-    console.error("[EMAIL] Error sending admin bootstrap email:", error);
+    console.error("[EMAIL] ❌ Error sending admin bootstrap email to", to, ":", error);
   }
 };
 
 export const notifyAdmin = async ({
+  adminEmail,
+  adminName,
   fullName,
   email,
   department,
   role,
   reason,
 }: AdminNotification): Promise<void> => {
-  console.log(`[EMAIL] Notifying admin at ${ADMIN_EMAIL}`);
+  console.log(`[EMAIL] Notifying admin ${adminName} at ${adminEmail}`);
   await send(
-    ADMIN_EMAIL,
+    adminEmail,
     "New Access Request Pending",
-    `<h2>New Access Request</h2>
+    `<h2>Hello ${adminName}</h2>
+     <h3>New Access Request</h3>
      <p><b>User:</b> ${fullName}</p>
      <p><b>Email:</b> ${email}</p>
      <p><b>Department:</b> ${department}</p>
      <p><b>Role Requested:</b> ${role}</p>
      <p><b>Reason:</b> ${reason || "No reason provided"}</p>
-     <p>Please log in to the system to approve this request.</p>
+     <p>Please log in to the system to approve or reject this request.</p>
      <p><a href="${FRONTEND_URL}/login">Go to Dashboard</a></p>`,
   );
 };
@@ -149,14 +154,18 @@ export const sendPasswordResetEmail = async ({
   name,
   resetUrl,
 }: PasswordResetEmail): Promise<void> => {
-  await send(
-    to,
-    "Reset your IT Asset System password",
-    `<h2>Hello ${name}</h2>
-     <p>We received a request to reset your password.</p>
-     <p><a href="${resetUrl}">Reset Password</a></p>
-     <p>This link expires in 30 minutes. If you did not request this, ignore this email.</p>`,
-  );
+  try {
+    await send(
+      to,
+      "Reset your IT Asset System password",
+      `<h2>Hello ${name}</h2>
+       <p>We received a request to reset your password.</p>
+       <p><a href="${resetUrl}">Reset Password</a></p>
+       <p>This link expires in 30 minutes. If you did not request this, ignore this email.</p>`,
+    );
+  } catch (error) {
+    console.error("[EMAIL] ❌ Error sending password reset email to", to, ":", error);
+  }
 };
 
 export const sendAccessRejectedEmail = async ({
@@ -174,7 +183,7 @@ export const sendAccessRejectedEmail = async ({
        <p>If you need assistance, please contact your administrator.</p>`,
     );
   } catch (error) {
-    console.error("[EMAIL] Error sending access rejection email:", error);
+    console.error("[EMAIL] ❌ Error sending rejection email to", to, ":", error);
   }
 };
 
@@ -200,6 +209,6 @@ export const sendTicketAcknowledgementEmail = async ({
        <p>You can keep using the system while the issue is being handled.</p>`,
     );
   } catch (error) {
-    console.error("[EMAIL] Error sending ticket acknowledgement email:", error);
+    console.error("[EMAIL] ❌ Error sending ticket acknowledgement email to", to, ":", error);
   }
 };
