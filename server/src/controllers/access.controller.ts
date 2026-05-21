@@ -167,12 +167,24 @@ export const createAccessRequest = async (
       }
     }
 
-    if (existing?.approved) {
-      return res.status(409).json({
-        message: "Access request already approved for this email",
-      });
-    }
+   if (existing?.approved) {
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      email: normalizedEmail,
+      isActive: true,
+    },
+  });
 
+  if (existingUser) {
+    return res.status(409).json({
+      message: "Access request already approved for this email",
+    });
+  }
+
+  await prisma.accessRequest.delete({
+    where: { id: existing.id },
+  });
+}
     const request = await prisma.accessRequest.create({
       data: {
         fullName,
