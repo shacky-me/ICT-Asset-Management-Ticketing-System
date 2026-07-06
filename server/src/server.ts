@@ -15,7 +15,7 @@ const allowedOrigins = (process.env.FRONTEND_URL || "")
   .filter(Boolean);
 
 const vercelProjectOriginPattern =
-  /^https:\/\/ictams-sdjhrca(?:-[a-z0-9-]+)?\.vercel\.app$/i;
+  /^https:\/\/sdoj-ict-asset-management-system(?:-[a-z0-9-]+)?\.vercel\.app$/i;
 
 function isAllowedOrigin(origin?: string): boolean {
   if (!origin) return true;
