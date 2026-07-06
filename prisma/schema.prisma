@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                 Int               @id @default(autoincrement())
+  fullName           String
+  staffNo            String            @unique
+  jobTitle           String
+  email              String            @unique
+  password           String
+  role               Role
+  isActive           Boolean           @default(true)
+  mustChangePassword Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+  departmentId       Int
+  activityLogs       ActivityLog[]
+  assetAssignment    AssetAssignment[]
+  department         Department        @relation(fields: [departmentId], references: [id])
+}
+
+model AccessRequest {
+  id            Int        @id @default(autoincrement())
+  fullName      String
+  staffNo       String
+  jobTitle      String
+  email         String
+  departmentId  Int
+  roleRequested Role
+  reason        String
+  approved      Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  department    Department @relation(fields: [departmentId], references: [id])
+}
+
+model Department {
+  id              Int               @id @default(autoincrement())
+  name            String            @unique
+  accessRequest   AccessRequest[]
+  assets          Asset[]
+  assetAssignment AssetAssignment[]
+  users           User[]
+}
+
+model Asset {
+  id                Int               @id @default(autoincrement())
+  departmentId      Int
+  status            AssetStatus       @default(Available)
+  tagNo             String            @unique
+  assetDescription  String?
+  category          String
+  color             String?
+  imeiNumber        String?
+  macAddress        String?
+  make              String
+  model             String
+  physicalCondition String?
+  serialNumber      String            @unique
+  subCategory       String?
+  systemAssetId     String?           @unique
+  createdAt         DateTime          @default(now())
+  activityLogs      ActivityLog[]
+  department        Department        @relation(fields: [departmentId], references: [id])
+  assignment        AssetAssignment[]
+  hardwareSpec      HardwareSpec?
+  procurement       Procurement?
+}
+
+model HardwareSpec {
+  id              Int     @id @default(autoincrement())
+  assetId         Int     @unique
+  processor       String?
+  ram             String?
+  storage         String?
+  screenSize      String?
+  powerRating     String?
+  color           String?
+  operatingSystem String?
+  osVersion       String?
+  ipAddress       String?
+  hostName        String?
+  asset           Asset   @relation(fields: [assetId], references: [id])
+}
+
+model Procurement {
+  id               Int       @id @default(autoincrement())
+  assetId          Int       @unique
+  procurementDate  DateTime
+  supplierVendor   String
+  fundingSource    String?
+  invoiceNumber    String?
+  iopNumber        String?
+  purchasePriceKES Float?
+  warrantyStart    DateTime?
+  warrantyEnd      DateTime?
+  warrantyType     String?
+  warrantyProvider String?
+  warrantyContact  String?
+  asset            Asset     @relation(fields: [assetId], references: [id])
+}
+
+model AssetAssignment {
+  id                      Int              @id @default(autoincrement())
+  assetId                 Int
+  departmentId            Int
+  assignedTo              String
+  payRollNo               String
+  floorLevel              String?
+  roomNumber              String?
+  accessories             String?
+  notes                   String?
+  disposalMethod          String?
+  assignedAt              DateTime         @default(now())
+  returnedAt              DateTime?
+  disposalDate            DateTime?
+  userId                  Int?
+  expectedReturnCondition String?
+  isOverdue               Boolean          @default(false)
+  status                  AssignmentStatus @default(ACTIVE)
+  refNo                   String           @unique
+  asset                   Asset            @relation(fields: [assetId], references: [id])
+  department              Department       @relation(fields: [departmentId], references: [id])
+  user                    User?            @relation(fields: [userId], references: [id])
+}
+
+model ActivityLog {
+  id        Int          @id @default(autoincrement())
+  type      ActivityType
+  message   String
+  assetId   Int?
+  userId    Int?
+  createdAt DateTime     @default(now())
+  asset     Asset?       @relation(fields: [assetId], references: [id])
+  user      User?        @relation(fields: [userId], references: [id])
+}
+
+enum ActivityType {
+  REGISTRATION
+  ASSIGNMENT
+  MAINTENANCE
+  TICKET_CREATED
+  STATUS_CHANGE
+}
+
+enum Role {
+  ICT_OFFICER
+  ICT_ADMIN
+}
+
+enum AssetStatus {
+  Available
+  Assigned
+  InStore
+  Maintenance
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  RETURNED
+  OVERDUE
+}
