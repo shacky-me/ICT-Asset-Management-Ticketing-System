@@ -1,10 +1,20 @@
+import "dotenv/config";
 import { PrismaClient, Role } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import bcrypt from "bcrypt";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error("❌ DATABASE_URL is missing in .env");
+}
+
+const pool = new Pool({ connectionString });
+const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 async function main() {
-  const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
+  const adminEmail = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
   const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
   const adminFullName =
     process.env.INITIAL_ADMIN_FULL_NAME || "System Administrator";
@@ -85,4 +95,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });

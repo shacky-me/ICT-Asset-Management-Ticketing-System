@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "migrate:fix-admin": "tsx src/migrations/fixAdminRole.ts"
+    "migrate:fix-admin": "tsx src/migrations/fixAdminRole.ts",
+    "seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
