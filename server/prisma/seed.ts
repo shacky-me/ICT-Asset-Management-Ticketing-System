@@ -49,8 +49,36 @@ async function main() {
     },
   });
 
+  // `npm run seed -- --reset-password` makes the existing admin's password
+  // match INITIAL_ADMIN_PASSWORD again and re-activates the account.
+  if (existingAdmin && process.argv.includes("--reset-password")) {
+    const hashedPassword = await bcrypt.hash(adminPassword, 12);
+    const updated = await prisma.user.update({
+      where: { id: existingAdmin.id },
+      data: {
+        password: hashedPassword,
+        role: Role.ICT_ADMIN,
+        isActive: true,
+      },
+    });
+
+    console.log("Initial administrator password reset from .env.");
+    console.log({
+      id: updated.id,
+      email: updated.email,
+      staffNo: updated.staffNo,
+      role: updated.role,
+      mustChangePassword: updated.mustChangePassword,
+    });
+
+    return;
+  }
+
   if (existingAdmin) {
     console.log("Initial administrator already exists.");
+    console.log(
+      "Run `npm run seed -- --reset-password` to set its password from INITIAL_ADMIN_PASSWORD.",
+    );
     console.log({
       id: existingAdmin.id,
       email: existingAdmin.email,
