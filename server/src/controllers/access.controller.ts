@@ -134,6 +134,15 @@ export const createAccessRequest = async (
       });
     }
 
+    // Administrator rights are granted by an existing admin (User Management),
+    // never through the public request form.
+    if (resolvedRole === "ICT_ADMIN") {
+      return res.status(400).json({
+        message:
+          "ICT Administrator access cannot be requested. Request the ICT Officer role; an administrator can upgrade your account.",
+      });
+    }
+
     if (!fullName || !resolvedStaffNo || !jobTitle || !normalizedEmail) {
       return res.status(400).json({ message: "Missing required fields" });
     }

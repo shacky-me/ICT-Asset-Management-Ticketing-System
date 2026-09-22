@@ -1,5 +1,6 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../types/auth.types.js";
+import { publicErrorMessage } from "../utils/publicError.js";
 import * as assignmentService from "../services/assignment.service.js";
 
 // Creating, editing and deleting assignments is limited to ICT staff,
@@ -27,7 +28,7 @@ export const createAssignment = async (req: AuthRequest, res: Response) => {
       assignment,
     });
   } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: publicErrorMessage(error, "Request failed") });
   }
 };
 
@@ -76,9 +77,9 @@ export const updateAssignment = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     if (error.message === "Assignment not found") {
-      return res.status(404).json({ message: error.message });
+      return res.status(404).json({ message: publicErrorMessage(error, "Request failed") });
     }
-    return res.status(400).json({ message: error.message });
+    return res.status(400).json({ message: publicErrorMessage(error, "Request failed") });
   }
 };
 
@@ -150,8 +151,8 @@ export const deleteAssignment = async (req: AuthRequest, res: Response) => {
     return res.status(200).json({ message: "Assignment deleted successfully" });
   } catch (error: any) {
     if (error.message === "Assignment not found") {
-      return res.status(404).json({ message: error.message });
+      return res.status(404).json({ message: publicErrorMessage(error, "Request failed") });
     }
-    return res.status(400).json({ message: error.message });
+    return res.status(400).json({ message: publicErrorMessage(error, "Request failed") });
   }
 };

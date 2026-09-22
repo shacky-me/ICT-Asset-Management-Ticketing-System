@@ -14,6 +14,12 @@ import {
 import { prisma } from "../prisma.js";
 import { sendTicketAcknowledgementEmail } from "../services/emailService.js";
 
+const TICKET_PRIORITIES: readonly string[] = ["Critical", "High", "Medium", "Low"];
+
+function isShortText(value: unknown, max: number): boolean {
+  return typeof value === "string" && value.length <= max;
+}
+
 export const createTicketHandler = async (
   req: AuthRequest<CreateTicketBody>,
   res: Response,
@@ -22,6 +28,21 @@ export const createTicketHandler = async (
 
   if (!title || !priority || !department) {
     return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  if (!TICKET_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ message: "Invalid priority" });
+  }
+
+  const { affectedAssetTag, assignedTo } = req.body;
+  const tooLong =
+    !isShortText(title, 200) ||
+    !isShortText(department, 120) ||
+    (affectedAssetTag != null && !isShortText(affectedAssetTag, 80)) ||
+    (assignedTo != null && !isShortText(assignedTo, 120));
+
+  if (tooLong) {
+    return res.status(400).json({ message: "One or more fields are too long" });
   }
 
   const requesterId = Number(req.user?.id);

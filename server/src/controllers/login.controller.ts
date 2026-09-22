@@ -5,6 +5,7 @@ import { prisma } from "../prisma.js";
 import type { AuthRequest } from "../types/auth.types.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";
 import { generateTempPassword } from "../utils/generateRandomPassword.js";
+import { passwordFingerprint } from "../utils/sessionFingerprint.js";
 import {
   clearKey,
   isLimited,
@@ -39,6 +40,7 @@ function createAuthToken(user: {
   id: number;
   role: string;
   departmentId: number;
+  password: string;
 }): string {
   const secret = process.env.JWT_SECRET;
 
@@ -54,6 +56,7 @@ function createAuthToken(user: {
       id: user.id,
       role: user.role,
       departmentId: user.departmentId,
+      pv: passwordFingerprint(user.password),
     },
     secret,
     { expiresIn: tokenTtl },

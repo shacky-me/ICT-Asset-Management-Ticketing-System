@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../prisma.js";
+import { passwordFingerprint } from "../utils/sessionFingerprint.js";
 
 interface DecodedUser {
   id: number;
@@ -31,6 +32,7 @@ export const authenticateToken = (
     try {
       const decoded = jwt.verify(token, secret) as DecodedUser & {
         purpose?: string;
+        pv?: string;
       };
 
       // Purpose-bound tokens (e.g. password reset links) are not sessions.
@@ -51,10 +53,16 @@ export const authenticateToken = (
           role: true,
           departmentId: true,
           isActive: true,
+          password: true,
         },
       });
 
       if (!user || !user.isActive) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Sessions issued before the latest password change are no longer valid.
+      if (decoded.pv !== passwordFingerprint(user.password)) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 

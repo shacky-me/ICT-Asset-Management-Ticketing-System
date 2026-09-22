@@ -1,5 +1,6 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../types/auth.types.js";
+import { publicErrorMessage } from "../utils/publicError.js";
 import * as assetService from "../services/asset.service.js";
 
 export const createAsset = async (req: AuthRequest, res: Response) => {
@@ -24,7 +25,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     return res.status(400).json({
-      message: error.message || "Error creating asset",
+      message: publicErrorMessage(error, "Error creating asset"),
     });
   }
 };
@@ -68,7 +69,7 @@ export const getAssetById = async (req: AuthRequest, res: Response) => {
 
     return res.status(200).json(asset);
   } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: publicErrorMessage(error, "Request failed") });
   }
 };
 
@@ -121,7 +122,9 @@ export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message });
     }
 
-    return res.status(400).json({ message });
+    return res
+      .status(400)
+      .json({ message: publicErrorMessage(error, "Error updating asset status") });
   }
 };
 
@@ -155,6 +158,8 @@ export const removeAsset = async (req: AuthRequest, res: Response) => {
       return res.status(409).json({ message });
     }
 
-    return res.status(400).json({ message });
+    return res
+      .status(400)
+      .json({ message: publicErrorMessage(error, "Error removing asset") });
   }
 };
