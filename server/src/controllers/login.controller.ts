@@ -5,6 +5,18 @@ import { prisma } from "../prisma.js";
 import type { AuthRequest } from "../types/auth.types.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";
 import { generateTempPassword } from "../utils/generateRandomPassword.js";
+import {
+  clearKey,
+  isLimited,
+  minutesUntilReset,
+  recordHit,
+  tryConsume,
+} from "../utils/rateLimit.js";
+
+const MAX_FAILED_LOGINS = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const MAX_RESET_EMAILS = 3;
+const RESET_WINDOW_MS = 15 * 60 * 1000;
 
 function toRoleLabel(role: string): string {
   if (role === "ICT_ADMIN") return "ICT Administrator";
@@ -15,6 +27,12 @@ function toRoleLabel(role: string): string {
 
 function isAdminRole(role: string): boolean {
   return String(role || "").trim().toUpperCase() === "ICT_ADMIN";
+}
+
+// Reset links are signed with the JWT secret plus the user's current password
+// hash: they cannot pass as session tokens and die once the password changes.
+function resetTokenSecret(secret: string, passwordHash: string): string {
+  return `${secret}:reset:${passwordHash}`;
 }
 
 function createAuthToken(user: {
@@ -59,6 +77,15 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
+    const loginKey = `login:${normalizedIdentifier}`;
+
+    if (isLimited(loginKey, MAX_FAILED_LOGINS, LOGIN_WINDOW_MS)) {
+      const minutes = minutesUntilReset(loginKey);
+      return res.status(429).json({
+        message: `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      });
+    }
+
     const user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -74,6 +101,7 @@ export const login = async (req: Request, res: Response) => {
     });
 
     if (!user) {
+      recordHit(loginKey, LOGIN_WINDOW_MS);
       return res.status(401).json({
         message: "Invalid email or password",
       });
@@ -88,11 +116,13 @@ export const login = async (req: Request, res: Response) => {
     const passwordMatch = await bcrypt.compare(cleanPassword, user.password);
 
     if (!passwordMatch) {
+      recordHit(loginKey, LOGIN_WINDOW_MS);
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
 
+    clearKey(loginKey);
     const token = createAuthToken(user);
     const mappedRole = toRoleLabel(user.role);
 
@@ -132,7 +162,6 @@ export const login = async (req: Request, res: Response) => {
 
     return res.status(500).json({
       message: "Internal server error",
-      detail: error instanceof Error ? error.message : String(error),
     });
   }
 };
@@ -270,6 +299,13 @@ export const forgotPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
+    // Same reply either way, so this does not reveal which emails exist.
+    if (!tryConsume(`forgot:${email}`, MAX_RESET_EMAILS, RESET_WINDOW_MS)) {
+      return res.status(200).json({
+        message: "If an account exists for this email, a reset link has been sent.",
+      });
+    }
+
     let user = await prisma.user.findFirst({
       where: {
         email: { equals: email, mode: "insensitive" },
@@ -370,9 +406,19 @@ export const forgotPassword = async (req: Request, res: Response) => {
         throw new Error("JWT_SECRET is not defined");
       }
 
+      const account = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { password: true },
+      });
+
+      if (!account) {
+        throw new Error("User disappeared while creating reset token");
+      }
+
+      // Keyed to the current password hash, so the link stops working once used.
       const resetToken = jwt.sign(
         { id: user.id, email: user.email, purpose: "password-reset" },
-        resetSecret,
+        resetTokenSecret(resetSecret, account.password),
         { expiresIn: "30m" },
       );
 
@@ -422,22 +468,33 @@ export const resetPasswordWithToken = async (req: Request, res: Response) => {
       throw new Error("JWT_SECRET is not defined");
     }
 
-    const decoded = jwt.verify(token, secret) as {
+    // Read the user id first, then verify with that user's password-bound secret.
+    const unverified = jwt.decode(token) as { id?: number } | null;
+    const userId = Number(unverified?.id);
+
+    if (!Number.isFinite(userId)) {
+      return res.status(400).json({ message: "Invalid reset token" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true, isActive: true },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(400).json({ message: "Invalid reset token" });
+    }
+
+    const decoded = jwt.verify(
+      token,
+      resetTokenSecret(secret, user.password),
+    ) as {
       id?: number;
       email?: string;
       purpose?: string;
     };
 
-    if (decoded.purpose !== "password-reset" || !decoded.id) {
-      return res.status(400).json({ message: "Invalid reset token" });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: { id: true, password: true, isActive: true },
-    });
-
-    if (!user || !user.isActive) {
+    if (decoded.purpose !== "password-reset" || decoded.id !== user.id) {
       return res.status(400).json({ message: "Invalid reset token" });
     }
 

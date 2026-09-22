@@ -29,7 +29,15 @@ export const authenticateToken = (
 
   (async () => {
     try {
-      const decoded = jwt.verify(token, secret) as DecodedUser;
+      const decoded = jwt.verify(token, secret) as DecodedUser & {
+        purpose?: string;
+      };
+
+      // Purpose-bound tokens (e.g. password reset links) are not sessions.
+      if (decoded?.purpose) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       const userId = Number(decoded?.id);
 
       if (!Number.isFinite(userId)) {

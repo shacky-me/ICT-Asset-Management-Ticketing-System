@@ -9,6 +9,16 @@ const FROM_EMAIL = process.env.EMAIL_FROM?.trim() || "naomimbugua536@gmail.com";
 const FROM_NAME = process.env.EMAIL_FROM_NAME?.trim() || "IT Asset System";
 const FRONTEND_URL = process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
 
+// Escape values placed into email HTML so user-entered text cannot inject markup or links.
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ─── Core send helper ────────────────────────────────────────────────────────
 
 async function send(to: string, subject: string, html: string): Promise<void> {
@@ -93,9 +103,9 @@ export const sendAccessEmail = async ({
     await send(
       to,
       "Your IT Asset System Access",
-      `<h2>Hello ${name}</h2>
+      `<h2>Hello ${esc(name)}</h2>
        <p>Your account has been approved and created.</p>
-       <p><b>Temporary Password:</b> ${tempPassword}</p>
+       <p><b>Temporary Password:</b> ${esc(tempPassword)}</p>
        <p>You will be asked to change your password on first login.</p>
        <p><a href="${FRONTEND_URL}/login">Login Here</a></p>`,
     );
@@ -113,10 +123,10 @@ export const sendAdminBootstrapEmail = async ({
     await send(
       to,
       "Admin Access Created - IT Asset System",
-      `<h2>Hello ${name}</h2>
+      `<h2>Hello ${esc(name)}</h2>
        <p>Your admin account has been created so you can review and approve access requests.</p>
-       <p><b>Email:</b> ${to}</p>
-       <p><b>Temporary Password:</b> ${tempPassword}</p>
+       <p><b>Email:</b> ${esc(to)}</p>
+       <p><b>Temporary Password:</b> ${esc(tempPassword)}</p>
        <p><a href="${FRONTEND_URL}/login">Log In to Dashboard</a></p>`,
     );
   } catch (error) {
@@ -137,13 +147,13 @@ export const notifyAdmin = async ({
   await send(
     adminEmail,
     "New Access Request Pending",
-    `<h2>Hello ${adminName}</h2>
+    `<h2>Hello ${esc(adminName)}</h2>
      <h3>New Access Request</h3>
-     <p><b>User:</b> ${fullName}</p>
-     <p><b>Email:</b> ${email}</p>
-     <p><b>Department:</b> ${department}</p>
-     <p><b>Role Requested:</b> ${role}</p>
-     <p><b>Reason:</b> ${reason || "No reason provided"}</p>
+     <p><b>User:</b> ${esc(fullName)}</p>
+     <p><b>Email:</b> ${esc(email)}</p>
+     <p><b>Department:</b> ${esc(department)}</p>
+     <p><b>Role Requested:</b> ${esc(role)}</p>
+     <p><b>Reason:</b> ${esc(reason || "No reason provided")}</p>
      <p>Please log in to the system to approve or reject this request.</p>
      <p><a href="${FRONTEND_URL}/login">Go to Dashboard</a></p>`,
   );
@@ -158,9 +168,9 @@ export const sendPasswordResetEmail = async ({
     await send(
       to,
       "Reset your IT Asset System password",
-      `<h2>Hello ${name}</h2>
+      `<h2>Hello ${esc(name)}</h2>
        <p>We received a request to reset your password.</p>
-       <p><a href="${resetUrl}">Reset Password</a></p>
+       <p><a href="${esc(resetUrl)}">Reset Password</a></p>
        <p>This link expires in 30 minutes. If you did not request this, ignore this email.</p>`,
     );
   } catch (error) {
@@ -177,9 +187,9 @@ export const sendAccessRejectedEmail = async ({
     await send(
       to,
       "IT Asset System Access Request Update",
-      `<h2>Hello ${name}</h2>
+      `<h2>Hello ${esc(name)}</h2>
        <p>Your access request was not approved at this time.</p>
-       <p><b>Reason:</b> ${reason || "No reason was provided."}</p>
+       <p><b>Reason:</b> ${esc(reason || "No reason was provided.")}</p>
        <p>If you need assistance, please contact your administrator.</p>`,
     );
   } catch (error) {
@@ -199,13 +209,13 @@ export const sendTicketAcknowledgementEmail = async ({
     await send(
       to,
       `Ticket ${ticketId} Received`,
-      `<h2>Hello ${name}</h2>
+      `<h2>Hello ${esc(name)}</h2>
        <p>Your ticket has been received by the ICT support team.</p>
        <p>An ICT Officer or ICT Administrator will review the issue and attend to you.</p>
-       <p><b>Ticket ID:</b> ${ticketId}</p>
-       <p><b>Issue:</b> ${issue}</p>
-       <p><b>Department:</b> ${department}</p>
-       <p><b>Assigned To:</b> ${assignedTo}</p>
+       <p><b>Ticket ID:</b> ${esc(ticketId)}</p>
+       <p><b>Issue:</b> ${esc(issue)}</p>
+       <p><b>Department:</b> ${esc(department)}</p>
+       <p><b>Assigned To:</b> ${esc(assignedTo)}</p>
        <p>You can keep using the system while the issue is being handled.</p>`,
     );
   } catch (error) {

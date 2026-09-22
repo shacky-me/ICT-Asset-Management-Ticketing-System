@@ -10,6 +10,11 @@ import {
 } from "../services/emailService.js";
 import type { AuthRequest } from "../types/auth.types.js";
 import type { CreateAccessRequestBody } from "../types/access.Request.types.js";
+import { tryConsume } from "../utils/rateLimit.js";
+
+const RENOTIFY_WINDOW_MS = 60 * 60 * 1000;
+const MAX_ALERTS_PER_HOUR = 30;
+const ALERT_WINDOW_MS = 60 * 60 * 1000;
 
 function resolveRequestedRole(
   roleRequested?: string,
@@ -139,6 +144,14 @@ export const createAccessRequest = async (
     });
 
     if (existing && !existing.approved) {
+      // Re-send the admin alert at most once an hour per pending request.
+      if (!tryConsume(`renotify:${existing.id}`, 1, RENOTIFY_WINDOW_MS)) {
+        return res.status(200).json({
+          message: "Request already submitted and pending approval.",
+          requestId: existing.id,
+        });
+      }
+
       try {
         await notifyAllAdmins({
           fullName: existing.fullName,
@@ -197,6 +210,20 @@ export const createAccessRequest = async (
         approved: false,
       },
     });
+
+    // Cap admin alert emails so a flood of fake requests cannot use up the
+    // email quota. Requests past the cap are still saved and show in the
+    // admin's pending list.
+    if (!tryConsume("access-request-alerts", MAX_ALERTS_PER_HOUR, ALERT_WINDOW_MS)) {
+      console.warn(
+        "[ACCESS] Admin alert skipped: hourly cap reached. Request saved as",
+        request.id,
+      );
+      return res.status(201).json({
+        message: "Request submitted. Admin notified.",
+        requestId: request.id,
+      });
+    }
 
     try {
       await notifyAllAdmins({
@@ -378,7 +405,15 @@ export const approveAccessRequest = async (
   } catch (error) {
     console.error("Approval Error:", error);
 
-    const message = error instanceof Error ? error.message : "Approval failed";
+    // Only pass through the messages thrown on purpose above; hide internal errors.
+    const knownMessages = [
+      "Invalid request or already approved",
+      "Cannot approve request because email and staff number belong to different existing users.",
+    ];
+    const message =
+      error instanceof Error && knownMessages.includes(error.message)
+        ? error.message
+        : "Approval failed";
 
     return res.status(500).json({ message });
   }
@@ -433,8 +468,7 @@ export const rejectAccessRequest = async (
   } catch (error) {
     console.error("Reject Request Error:", error);
 
-    const message =
-      error instanceof Error ? error.message : "Failed to reject request";
+    const message = "Failed to reject request";
 
     return res.status(500).json({ message });
   }

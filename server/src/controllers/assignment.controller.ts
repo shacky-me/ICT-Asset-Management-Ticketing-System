@@ -2,9 +2,20 @@ import type { Response } from "express";
 import type { AuthRequest } from "../types/auth.types.js";
 import * as assignmentService from "../services/assignment.service.js";
 
+// Creating, editing and deleting assignments is limited to ICT staff,
+// matching who can reach these actions in the web app.
+function canManageAssignments(role: string): boolean {
+  return role === "ICT_ADMIN" || role === "ICT_OFFICER";
+}
+
 export const createAssignment = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!canManageAssignments(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "Only ICT Officers and ICT Admins can manage assignments" });
+    }
 
     const assignment = await assignmentService.createAssignment(
       req.body,
@@ -47,6 +58,11 @@ export const getStats = async (req: AuthRequest, res: Response) => {
 export const updateAssignment = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!canManageAssignments(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "Only ICT Officers and ICT Admins can manage assignments" });
+    }
 
     const { id } = req.params;
     const assignment = await assignmentService.updateAssignment(
@@ -72,6 +88,11 @@ export const updateAssignmentStatus = async (
 ) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!canManageAssignments(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "Only ICT Officers and ICT Admins can manage assignments" });
+    }
 
     const { id } = req.params;
     const { status } = req.body;
@@ -117,6 +138,11 @@ export const updateAssignmentStatus = async (
 export const deleteAssignment = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!canManageAssignments(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "Only ICT Officers and ICT Admins can manage assignments" });
+    }
 
     const { id } = req.params;
     await assignmentService.deleteAssignment(Number(id), req.user.id);

@@ -10,6 +10,12 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    if (req.user.role !== "ICT_ADMIN" && req.user.role !== "ICT_OFFICER") {
+      return res.status(403).json({
+        message: "Only ICT Admin and ICT Officer can register assets",
+      });
+    }
+
     const asset = await assetService.createAsset(req.body, req.user.id);
 
     return res.status(201).json({
