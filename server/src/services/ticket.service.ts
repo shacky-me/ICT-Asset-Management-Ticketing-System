@@ -86,6 +86,7 @@ function mapRowToTicket(row: TicketRow): TicketRecord {
     assetTag: row.asset_tag,
     status: row.status as TicketStatus,
     created: formatRelative(new Date(row.created_at).toISOString()),
+    createdAt: new Date(row.created_at).toISOString(),
     raisedByUserId: row.raised_by_user_id,
   };
 }

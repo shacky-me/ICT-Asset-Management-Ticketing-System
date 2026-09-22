@@ -25,6 +25,7 @@ export type TicketRecord = {
   assetTag: string;
   status: TicketStatus;
   created: string;
+  createdAt: string;
   raisedByUserId: number;
 };
 

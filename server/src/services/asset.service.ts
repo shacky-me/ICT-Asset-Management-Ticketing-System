@@ -241,6 +241,7 @@ export const getAllAssets = async (filters: any) => {
         department: { select: { name: true, id: true } },
         procurement: {
           select: {
+            procurementDate: true,
             warrantyEnd: true,
             warrantyType: true,
           },
