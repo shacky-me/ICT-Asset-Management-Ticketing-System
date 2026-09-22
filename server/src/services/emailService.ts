@@ -7,7 +7,9 @@ const client = new TransactionalEmailsClient({
 
 const FROM_EMAIL = process.env.EMAIL_FROM?.trim() || "naomimbugua536@gmail.com";
 const FROM_NAME = process.env.EMAIL_FROM_NAME?.trim() || "IT Asset System";
-const FRONTEND_URL = process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+// FRONTEND_URL may hold a comma-separated allow-list for CORS; links use the first entry.
+const FRONTEND_URL =
+  process.env.FRONTEND_URL?.split(",")[0]?.trim() || "http://localhost:3000";
 
 // Escape values placed into email HTML so user-entered text cannot inject markup or links.
 function esc(value: unknown): string {

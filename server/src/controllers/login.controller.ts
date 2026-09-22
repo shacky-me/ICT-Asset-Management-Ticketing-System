@@ -425,8 +425,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
         { expiresIn: "30m" },
       );
 
+      // FRONTEND_URL may hold a comma-separated CORS allow-list; use the first entry.
       const frontendUrl =
-        process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+        process.env.FRONTEND_URL?.split(",")[0]?.trim() || "http://localhost:3000";
 
       const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(
         resetToken,
