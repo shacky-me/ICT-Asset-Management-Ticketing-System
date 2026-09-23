@@ -109,3 +109,14 @@ export function useAssignments() {
 
   return { items, stats };
 }
+
+// Loads every page, for reports that must not be cut off at the list limit.
+export async function fetchAllAssignments(): Promise<AssignmentRecord[]> {
+  const rows: AssignmentRecord[] = [];
+  for (let page = 1; ; page++) {
+    const response = await getAssignments({ page, limit: 200 });
+    rows.push(...response.assignments.map(mapAssignment));
+    if (page >= response.totalPages || response.assignments.length === 0) break;
+  }
+  return rows;
+}

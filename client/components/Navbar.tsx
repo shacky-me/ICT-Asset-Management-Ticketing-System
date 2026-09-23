@@ -76,12 +76,12 @@ const Navbar = () => {
         <p className="text-xs text-gray-400">
           <Link
             href="/overview"
-            className="hover:text-[#235FE7] transition-colors"
+            className="hover:text-[#1E3A6E] transition-colors"
           >
             SDJHRCA
           </Link>{" "}
           /{" "}
-          <Link href="/overview" className="text-[#235FE7] hover:underline">
+          <Link href="/overview" className="text-[#1E3A6E] hover:underline">
             {pageTitle}
           </Link>
         </p>
@@ -134,7 +134,7 @@ const Navbar = () => {
           >
             <Bell className="h-5 w-5 text-gray-600" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 h-4 min-w-4 px-1 bg-[#235FE7] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute top-1 right-1 h-4 min-w-4 px-1 bg-[#1E3A6E] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
@@ -188,7 +188,7 @@ const Navbar = () => {
         </div>
 
         {/* Avatar */}
-        <div className="h-9 w-9 rounded-full bg-[#235FE7] flex items-center justify-center cursor-pointer">
+        <div className="h-9 w-9 rounded-full bg-[#1E3A6E] flex items-center justify-center cursor-pointer">
           <span className="text-xs font-bold text-white">{initials}</span>
         </div>
       </div>

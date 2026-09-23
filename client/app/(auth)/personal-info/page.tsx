@@ -1,9 +1,9 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
-import Logo from "@/app/assets/Logo.svg";
+import BrandMark from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -11,7 +11,7 @@ import { PersonalInfoSchema } from "@/lib/validations/auth";
 import Link from "next/link";
 import { useRouter } from "next/dist/client/components/navigation";
 
-// ✅ Single source of truth for the storage key
+// Single source of truth for the storage key
 // ReviewAndSubmit reads from this same key
 const STORAGE_KEY = "request_access_step1";
 
@@ -85,7 +85,7 @@ const PersonalInformation = () => {
       <div className="fixed top-[-45] left-0 right-0 overflow-y-auto max-h-screen">
         <div className="bg-[#fefefe] w-lg h-fit mx-auto my-16 px-16 py-6 border border-gray-200 rounded-lg space-y-8 shadow-lg shadow-gray-200">
           <div className="flex flex-col justify-center items-center">
-            <Image src={Logo} alt="Logo" className="h-8 w-60" />
+            <BrandMark />
           </div>
           <FieldSet className=" ">
             <div className="space-y-2">
@@ -198,7 +198,7 @@ const PersonalInformation = () => {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="cursor-pointer bg-[#235FE7] w-fit font-bold disabled:opacity-70"
+                className="cursor-pointer bg-[#1E3A6E] w-fit gap-1.5 font-bold disabled:opacity-70"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
@@ -206,7 +206,9 @@ const PersonalInformation = () => {
                     Loading...
                   </div>
                 ) : (
-                  "Continue →"
+                  <>
+                    Continue <ArrowRight aria-hidden="true" />
+                  </>
                 )}
               </Button>
             </div>

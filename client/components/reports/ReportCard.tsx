@@ -87,7 +87,7 @@ const ReportCard = ({
         {formats.map((f) => (
           <span
             key={f}
-            className="text-[10px] font-semibold text-[#235FE7] uppercase tracking-wider"
+            className="text-[10px] font-semibold text-[#1E3A6E] uppercase tracking-wider"
           >
             {f}
             {formats.indexOf(f) < formats.length - 1 ? "/" : ""}

@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 
 type Props = {
   overdueCount: number;
@@ -26,9 +26,9 @@ const AssignmentAlert = ({ overdueCount, onViewOverdue }: Props) => {
       </div>
       <button
         onClick={onViewOverdue}
-        className="text-xs text-red-500 font-semibold whitespace-nowrap hover:underline cursor-pointer"
+        className="inline-flex items-center gap-1 text-xs text-red-500 font-semibold whitespace-nowrap hover:underline cursor-pointer"
       >
-        View Overdue →
+        View Overdue <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
     </div>
   );

@@ -1,12 +1,12 @@
 "use client";
 
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldSet, Field, FieldLabel } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
-import Image from "next/image";
 import Link from "next/link";
-import Logo from "@/app/assets/Logo.svg";
+import BrandMark from "@/components/BrandMark";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -73,14 +73,14 @@ const AccessDetails = () => {
         <div className="bg-[#fefefe] h-[80vh] flex flex-col border border-gray-200 rounded-lg shadow-lg shadow-gray-200">
           {/* Sticky top — logo + progress */}
           <div className="flex flex-col items-center gap-4 px-16 pt-6 pb-4 border-b border-gray-100">
-            <Image src={Logo} alt="Logo" className="h-8 w-60" />
+            <BrandMark />
             <div className="w-full space-y-2">
               <h1 className="font-bold">Request Access</h1>
               <p className="text-sm text-gray-700">
                 Step 2 of 3 •{" "}
                 <span className="font-semibold">Access Details</span>
               </p>
-              <Progress value={80} className="[&>div]:bg-[#2B66E6]" />
+              <Progress value={80} className="[&>div]:bg-[#274A85]" />
             </div>
           </div>
 
@@ -111,7 +111,7 @@ const AccessDetails = () => {
                     <CardAction>
                       <Badge
                         variant="secondary"
-                        className="text-[#235FE7] bg-[#8BA6EC]/48"
+                        className="text-[#1E3A6E] bg-[#9DB0D3]/48"
                       >
                         Staff
                       </Badge>
@@ -173,29 +173,11 @@ const AccessDetails = () => {
                   </CardHeader>
                 </Card>
 
-                {/* ICT Administrator */}
-                <Card className="relative mx-auto w-full max-w-sm pt-4 px-4">
-                  <RadioGroupItem
-                    value="administrator"
-                    id="option-four"
-                    className="absolute top-5 left-2"
-                  />
-                  <CardHeader>
-                    <CardAction>
-                      <Badge
-                        variant="secondary"
-                        className="text-[#B66231] bg-[#FFF3CD]"
-                      >
-                        ICT Administrator
-                      </Badge>
-                    </CardAction>
-                    <CardTitle>ICT Administrator</CardTitle>
-                    <CardDescription>
-                      View, action, and resolve support tickets.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
               </RadioGroup>
+              <p className="text-xs text-gray-500">
+                Need ICT Administrator access? Request the ICT Officer role;
+                an existing administrator can then upgrade your account.
+              </p>
 
               {/* Textarea */}
               <Field>
@@ -219,15 +201,15 @@ const AccessDetails = () => {
                 <Link href="/personal-info">
                   <Button
                     variant="outline"
-                    className="cursor-pointer w-fit font-bold"
+                    className="cursor-pointer w-fit gap-1.5 font-bold"
                   >
-                    ← Go Back
+                    <ArrowLeft aria-hidden="true" /> Go Back
                   </Button>
                 </Link>
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="cursor-pointer bg-[#235FE7] w-fit font-bold"
+                  className="cursor-pointer bg-[#1E3A6E] w-fit gap-1.5 font-bold"
                 >
                   {isLoading ? (
                     <div className="flex items-center gap-2">
@@ -235,7 +217,9 @@ const AccessDetails = () => {
                       Loading...
                     </div>
                   ) : (
-                    "Continue →"
+                    <>
+                      Continue <ArrowRight aria-hidden="true" />
+                    </>
                   )}
                 </Button>
               </div>

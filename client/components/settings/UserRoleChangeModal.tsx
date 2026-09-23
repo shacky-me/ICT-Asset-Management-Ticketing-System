@@ -95,7 +95,7 @@ export default function UserRoleChangeModal({
           <Button
             onClick={onConfirm}
             disabled={isLoading}
-            className="bg-[#235FE7] hover:bg-[#1a4fd6]"
+            className="bg-[#1E3A6E] hover:bg-[#172E57]"
           >
             {isLoading ? "Updating..." : "Confirm Role Change"}
           </Button>

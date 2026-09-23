@@ -389,7 +389,7 @@ const UserManagementSection = () => {
                     <Button
                       onClick={() => openDecisionModal("approve", request)}
                       disabled={active}
-                      className="bg-[#235FE7] hover:bg-[#1a4fd6] text-xs"
+                      className="bg-[#1E3A6E] hover:bg-[#172E57] text-xs"
                     >
                       {active ? "Working..." : "Approve"}
                     </Button>

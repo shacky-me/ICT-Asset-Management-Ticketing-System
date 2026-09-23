@@ -34,7 +34,7 @@ const StatsBar = ({
           <p className="text-sm font-bold text-gray-900">
             Management & Ticketing System
           </p>
-          <p className="text-xs text-[#235FE7] font-medium mt-1">Overview</p>
+          <p className="text-xs text-[#1E3A6E] font-medium mt-1">Overview</p>
         </div>
         <div className="flex items-center gap-8">
           <div className="text-center">
@@ -61,7 +61,7 @@ const StatsBar = ({
         {allowRegisterAsset && (
           <Button
             onClick={() => setShowModal(true)}
-            className="bg-[#235FE7] hover:bg-[#1a4fd6] cursor-pointer gap-2"
+            className="bg-[#1E3A6E] hover:bg-[#172E57] cursor-pointer gap-2"
           >
             <Plus className="h-4 w-4" />
             Register Asset

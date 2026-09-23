@@ -23,8 +23,8 @@ const AssignmentStatsBar = ({
       value: String(assignedThisMonth),
       label: "Assigned This Month",
       sub: "Current month",
-      subColor: "text-[#235FE7]",
-      border: "border-t-[#235FE7]",
+      subColor: "text-[#1E3A6E]",
+      border: "border-t-[#1E3A6E]",
     },
     {
       value: String(returned),

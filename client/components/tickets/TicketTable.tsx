@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type Priority = "Critical" | "High" | "Medium" | "Low";
@@ -192,7 +193,7 @@ const TicketTable = ({
               key={t.id}
               className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
             >
-              <td className="px-3 py-4 text-[#235FE7] font-semibold text-xs truncate">
+              <td className="px-3 py-4 text-[#1E3A6E] font-semibold text-xs truncate">
                 {t.id}
               </td>
               <td className="px-3 py-4 text-gray-900 font-medium text-xs truncate">
@@ -211,7 +212,7 @@ const TicketTable = ({
               <td className="px-3 py-4 text-gray-700 text-xs truncate">
                 {t.assignedTo}
               </td>
-              <td className="px-3 py-4 text-[#235FE7] text-xs font-medium truncate">
+              <td className="px-3 py-4 text-[#1E3A6E] text-xs font-medium truncate">
                 {t.assetTag}
               </td>
               <td className="px-3 py-4">
@@ -240,7 +241,7 @@ const TicketTable = ({
                           onUpdateTicketStatus?.(t.id, action.status)
                         }
                         disabled={Boolean(updatingTicketId === t.id)}
-                        className="text-xs text-[#235FE7] font-semibold hover:underline disabled:opacity-40 disabled:no-underline"
+                        className="text-xs text-[#1E3A6E] font-semibold hover:underline disabled:opacity-40 disabled:no-underline"
                       >
                         {action.label}
                       </button>
@@ -256,7 +257,7 @@ const TicketTable = ({
       {/* Pagination */}
       {showPagination && (
         <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100">
-          <p className="text-xs text-[#235FE7] font-medium">
+          <p className="text-xs text-[#1E3A6E] font-medium">
             Showing {startRow}-{endRow} of {filtered.length} tickets
           </p>
           <div className="flex items-center gap-1">
@@ -265,8 +266,8 @@ const TicketTable = ({
               disabled={effectivePage === 1}
               className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm disabled:opacity-40"
             >
-              ‹
-            </button>
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
             <span className="text-xs text-gray-500 px-2">
               Page {effectivePage} of {totalPages}
             </span>
@@ -277,8 +278,8 @@ const TicketTable = ({
               disabled={effectivePage === totalPages}
               className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm disabled:opacity-40"
             >
-              ›
-            </button>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
             {pageItems.map((item, index) =>
               item === "..." ? (
                 <span
@@ -297,7 +298,7 @@ const TicketTable = ({
                   }}
                   className={`h-8 w-8 flex items-center justify-center rounded-lg text-xs font-medium ${
                     item === effectivePage
-                      ? "bg-[#235FE7] text-white"
+                      ? "bg-[#1E3A6E] text-white"
                       : "hover:bg-gray-100 text-gray-600"
                   }`}
                 >

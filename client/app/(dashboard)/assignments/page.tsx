@@ -7,9 +7,10 @@ import AssignmentTable from "@/components/assignments/AssignmentTable";
 import AssignmentModal from "@/components/modals/AssignmentModal";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { useCurrentUser } from "@/lib/session";
+import { readCurrentUser, useCurrentUser } from "@/lib/session";
 import { canManageAssignments, normalizeRole } from "@/lib/rbac";
 import { exportToCSV } from "@/app/utils/csvUtils";
+import { asAtTodayPeriod } from "@/app/utils/reportLetterhead";
 import { useAssignments } from "@/lib/assignments";
 import { useDashboardSearch } from "@/lib/dashboardSearch";
 import type { AssignmentRecord } from "@/lib/assignments";
@@ -77,7 +78,11 @@ const AssignmentsPage = () => {
   );
 
   const handleExport = () => {
-    exportToCSV(exportRows, "assignments.csv");
+    exportToCSV(exportRows, "assignments.csv", {
+      title: "Asset Assignments",
+      period: asAtTodayPeriod(),
+      preparedBy: readCurrentUser()?.name,
+    });
   };
 
   const handleOpenNew = () => {
@@ -115,7 +120,7 @@ const AssignmentsPage = () => {
           {allowAssignmentManagement && (
             <Button
               onClick={handleOpenNew}
-              className="bg-[#235FE7] hover:bg-[#1a4fd6] text-sm cursor-pointer"
+              className="bg-[#1E3A6E] hover:bg-[#172E57] text-sm cursor-pointer"
             >
               + New Assignment
             </Button>

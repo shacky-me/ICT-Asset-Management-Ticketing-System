@@ -19,6 +19,7 @@ export type AssetRow = {
   warranty: string;
   assignedTo?: string;
   createdAt: string;
+  acquiredAt: string;
 };
 
 export type AssetStats = {
@@ -70,6 +71,7 @@ function mapAsset(input: ApiAsset): AssetRow {
     warranty: mapWarranty(input),
     assignedTo: input.assignment?.[0]?.assignedTo || undefined,
     createdAt: input.createdAt,
+    acquiredAt: input.procurement?.procurementDate || input.createdAt,
   };
 }
 
@@ -130,4 +132,15 @@ export function useAssets() {
   }, [assets]);
 
   return { assets, stats, byDepartment };
+}
+
+// Loads every page, for reports that must not be cut off at the list limit.
+export async function fetchAllAssets(): Promise<AssetRow[]> {
+  const rows: AssetRow[] = [];
+  for (let page = 1; ; page++) {
+    const response = await getAssets({ page, limit: 200 });
+    rows.push(...response.assets.map(mapAsset));
+    if (page >= response.totalPages || response.assets.length === 0) break;
+  }
+  return rows;
 }

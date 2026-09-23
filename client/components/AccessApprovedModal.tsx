@@ -37,7 +37,7 @@ const AccessApprovedModal = ({
           <p className="text-sm text-gray-600 leading-relaxed">
             Your account has been created. A temporary password has been sent to
           </p>
-          <p className="text-sm text-[#235FE7] font-medium">{email}</p>
+          <p className="text-sm text-[#1E3A6E] font-medium">{email}</p>
         </div>
 
         {/* Details table */}
@@ -87,7 +87,7 @@ const AccessApprovedModal = ({
 
         {/* CTA */}
         <Link href="/login" className="w-full">
-          <Button className="w-full bg-[#235FE7] cursor-pointer">
+          <Button className="w-full bg-[#1E3A6E] cursor-pointer">
             Go To Login
           </Button>
         </Link>

@@ -7,7 +7,12 @@ import {
   changeTemporaryPassword,
   resetPasswordWithToken,
 } from "@/lib/apiClient";
-import { readAuthToken, readCurrentUser, saveCurrentUser } from "@/lib/session";
+import {
+  readAuthToken,
+  readCurrentUser,
+  saveAuthToken,
+  saveCurrentUser,
+} from "@/lib/session";
 import { addNotification } from "@/lib/notifications";
 
 function ResetPasswordContent() {
@@ -65,6 +70,10 @@ function ResetPasswordContent() {
           Boolean(window.localStorage.getItem("ictams.currentUser"));
 
         saveCurrentUser(response.user, { persistent });
+        // The old token stops working once the password changes.
+        if (response.token) {
+          saveAuthToken(response.token, { persistent });
+        }
         addNotification({
           title: "Password updated",
           message: "Your account is now active with your new password.",

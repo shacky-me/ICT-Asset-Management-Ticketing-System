@@ -60,7 +60,7 @@ const AssetsPage = () => {
             {allowRegisterAsset && (
               <Button
                 onClick={() => setShowModal(true)}
-                className="bg-[#235FE7] hover:bg-[#1a4fd6] gap-1 text-sm cursor-pointer"
+                className="bg-[#1E3A6E] hover:bg-[#172E57] gap-1 text-sm cursor-pointer"
               >
                 + Register Asset
               </Button>

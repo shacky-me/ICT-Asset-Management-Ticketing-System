@@ -1,3 +1,13 @@
+import {
+  ClipboardList,
+  Globe,
+  KeyRound,
+  Laptop,
+  Printer as PrinterIcon,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+
 export type TicketPriority = "Low" | "Medium" | "High" | "Critical";
 export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed";
 export type TicketCategory =
@@ -95,14 +105,14 @@ export const PRIORITY_META: Record<
 // Category metadata
 export const CATEGORY_META: Record<
   TicketCategory,
-  { icon: string; desc: string }
+  { icon: LucideIcon; desc: string }
 > = {
-  Hardware: { icon: "💻", desc: "Physical device issues" },
-  Software: { icon: "⚙️", desc: "App crashes, errors, installs" },
-  Network: { icon: "🌐", desc: "Internet, VPN, connectivity" },
-  "Access & Accounts": { icon: "🔑", desc: "Login, passwords, permissions" },
-  Printer: { icon: "🖨️", desc: "Printing and scanner issues" },
-  Other: { icon: "📋", desc: "Any other ICT issue" },
+  Hardware: { icon: Laptop, desc: "Physical device issues" },
+  Software: { icon: Settings, desc: "App crashes, errors, installs" },
+  Network: { icon: Globe, desc: "Internet, VPN, connectivity" },
+  "Access & Accounts": { icon: KeyRound, desc: "Login, passwords, permissions" },
+  Printer: { icon: PrinterIcon, desc: "Printing and scanner issues" },
+  Other: { icon: ClipboardList, desc: "Any other ICT issue" },
 };
 
 // Mock asset list (replace with API in Phase 3)

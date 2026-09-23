@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { FileText, Image as ImageIcon, Mail } from "lucide-react";
 import {
   NewTicketFormData,
   TicketPriority,
@@ -364,8 +365,9 @@ export default function RaiseTicketModal({
               ))}
             </div>
 
-            <p className="text-xs text-slate-400 mb-5">
-              📧 A confirmation has been sent to your email.
+            <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400 mb-5">
+              <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+              A confirmation has been sent to your email.
             </p>
 
             <div className="flex gap-3 w-full">
@@ -484,6 +486,7 @@ export default function RaiseTicketModal({
                 <div className="grid grid-cols-3 gap-2">
                   {CATEGORIES.map((cat) => {
                     const meta = CATEGORY_META[cat];
+                    const CategoryIcon = meta.icon;
                     const isActive = form.category === cat;
                     return (
                       <button
@@ -498,9 +501,11 @@ export default function RaiseTicketModal({
                             : "border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50",
                         ].join(" ")}
                       >
-                        <span className="text-lg leading-none">
-                          {meta.icon}
-                        </span>
+                        <CategoryIcon
+                          className={`h-5 w-5 ${isActive ? "text-blue-700" : "text-slate-500"}`}
+                          strokeWidth={1.75}
+                          aria-hidden="true"
+                        />
                         <span
                           className={`text-xs font-bold leading-tight
                         ${isActive ? "text-blue-700" : "text-slate-800"}`}
@@ -929,9 +934,11 @@ export default function RaiseTicketModal({
                         className="flex items-center gap-2.5 px-3 py-2
                                  bg-slate-50 border border-slate-200 rounded-lg"
                       >
-                        <span className="text-base shrink-0">
-                          {file.type.startsWith("image") ? "🖼️" : "📄"}
-                        </span>
+                        {file.type.startsWith("image") ? (
+                          <ImageIcon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                        ) : (
+                          <FileText className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                        )}
                         <span className="text-xs text-slate-700 flex-1 truncate">
                           {file.name}
                         </span>

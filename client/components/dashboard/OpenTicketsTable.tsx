@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import RaiseTicketModal from "../modals/RaiseTicketModal";
@@ -81,7 +81,7 @@ const OpenTicketsTable = ({
         <Button
           onClick={() => setIsTicketOpen(true)}
           variant="outline"
-          className="gap-2 text-sm cursor-pointer text-[#235FE7] border-[#235FE7] hover:bg-blue-50"
+          className="gap-2 text-sm cursor-pointer text-[#1E3A6E] border-[#1E3A6E] hover:bg-blue-50"
         >
           <Plus className="h-4 w-4" /> New Ticket
         </Button>
@@ -119,7 +119,7 @@ const OpenTicketsTable = ({
               key={t.id}
               className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
             >
-              <td className="px-6 py-4 text-[#235FE7] font-semibold">{t.id}</td>
+              <td className="px-6 py-4 text-[#1E3A6E] font-semibold">{t.id}</td>
               <td className="px-6 py-4 text-gray-900 font-medium">{t.issue}</td>
               <td className="px-6 py-4">
                 <span
@@ -153,7 +153,7 @@ const OpenTicketsTable = ({
             disabled={effectivePage === 1}
             className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm disabled:opacity-40"
           >
-            ‹
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
           <span className="text-xs text-gray-500 px-2">
             Page {effectivePage} of {totalPages}
@@ -165,13 +165,13 @@ const OpenTicketsTable = ({
             disabled={effectivePage === totalPages}
             className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-sm disabled:opacity-40"
           >
-            ›
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
           <Link
             href="/tickets"
-            className="ml-2 text-xs text-[#235FE7] font-semibold hover:underline flex items-center gap-1"
+            className="ml-2 text-xs text-[#1E3A6E] font-semibold hover:underline flex items-center gap-1"
           >
-            View all tickets →
+            View all tickets <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
         </div>
       </div>

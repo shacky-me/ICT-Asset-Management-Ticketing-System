@@ -16,7 +16,7 @@ const TicketFilterTabs = ({ active, onTabChange }: Props) => {
           onClick={() => onTabChange(tab)}
           className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
             active === tab
-              ? "bg-[#235FE7] text-white"
+              ? "bg-[#1E3A6E] text-white"
               : "text-gray-500 border border-gray-200 hover:bg-gray-50"
           }`}
         >

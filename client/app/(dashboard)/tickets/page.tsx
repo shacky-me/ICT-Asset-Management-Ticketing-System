@@ -35,7 +35,7 @@ const TicketsPage = () => {
           </div>
           <Button
             onClick={() => setIsTicketOpen(true)}
-            className="bg-[#235FE7] hover:bg-[#1a4fd6] text-sm cursor-pointer"
+            className="bg-[#1E3A6E] hover:bg-[#172E57] text-sm cursor-pointer"
           >
             + Raise Ticket
           </Button>

@@ -25,7 +25,7 @@ const ProfileSection = () => {
 
       <div className="px-6 py-5 flex items-start gap-5">
         {/* Avatar */}
-        <div className="h-14 w-14 rounded-full bg-[#235FE7] flex items-center justify-center shrink-0">
+        <div className="h-14 w-14 rounded-full bg-[#1E3A6E] flex items-center justify-center shrink-0">
           <span className="text-lg p-2 font-bold text-white">
             {profile.initials}
           </span>

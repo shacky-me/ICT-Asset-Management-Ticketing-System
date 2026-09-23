@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   Field,
   FieldDescription,
@@ -11,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
-import Logo from "@/app/assets/Logo.svg";
+import BrandMark from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -176,6 +175,10 @@ const LoginFormPage = () => {
           error instanceof Error ? error.message.toLowerCase() : "";
         if (message.includes("invalid email or password")) {
           setAuthError("Invalid credentials. Check your email and password.");
+        } else if (message.includes("too many failed sign-in attempts")) {
+          setAuthError(
+            "Too many failed sign-in attempts. Please wait 15 minutes and try again.",
+          );
         } else if (message.includes("not yet authorized")) {
           setAuthError(
             "Account not yet approved. Please contact administrator.",
@@ -198,7 +201,7 @@ const LoginFormPage = () => {
       <main className="fixed top-0 left-0 right-0 bottom-0 flex-1 flex justify-center items-center">
         <FieldSet className="w-full max-w-md px-10 py-8 border border-gray-200 rounded-lg space-y-8 shadow-lg shadow-gray-200 bg-white">
           <div className="flex flex-col justify-center items-center">
-            <Image src={Logo} alt="Logo" className="h-8 w-60" />
+            <BrandMark />
             <h1 className="text-sm text-[#747376] mt-2 text-center">
               Sign in to access the asset management system
             </h1>
@@ -350,7 +353,7 @@ const LoginFormPage = () => {
                 aria-hidden="true"
               >
                 <div
-                  className="h-full bg-[#235FE7] rounded-full"
+                  className="h-full bg-[#1E3A6E] rounded-full"
                   style={{
                     width: `${progress}%`,
                     transition: "width 30ms linear",
@@ -360,7 +363,7 @@ const LoginFormPage = () => {
 
               <Button
                 type="submit"
-                className="cursor-pointer bg-[#235FE7] w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="cursor-pointer bg-[#1E3A6E] w-full disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 disabled={!canSubmit || isLoading}
               >
                 {isLoading ? (

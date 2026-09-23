@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import AssetDetailsModal from "@/components/assets/AssetDetailsModal";
 import ConfirmActionModal from "@/components/ui/ConfirmActionModal";
@@ -193,7 +194,7 @@ const AssetTable = ({
                 key={a.tag}
                 className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
               >
-                <td className="px-3 py-4 text-[#235FE7] font-semibold text-xs truncate">
+                <td className="px-3 py-4 text-[#1E3A6E] font-semibold text-xs truncate">
                   {a.tag}
                 </td>
                 <td className="px-3 py-4 text-gray-900 font-medium text-xs truncate">
@@ -237,7 +238,7 @@ const AssetTable = ({
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setSelectedAsset(a)}
-                      className="text-xs text-[#235FE7] font-semibold hover:underline whitespace-nowrap"
+                      className="text-xs text-[#1E3A6E] font-semibold hover:underline whitespace-nowrap"
                     >
                       View
                     </button>
@@ -285,7 +286,7 @@ const AssetTable = ({
                        text-gray-500 hover:bg-gray-100 disabled:opacity-30
                        disabled:cursor-not-allowed transition-colors"
           >
-            ‹
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
 
           {pageNumbers.map((p, i) =>
@@ -304,7 +305,7 @@ const AssetTable = ({
                             font-medium transition-colors
                             ${
                               effectivePage === p
-                                ? "bg-[#235FE7] text-white"
+                                ? "bg-[#1E3A6E] text-white"
                                 : "text-gray-600 hover:bg-gray-100"
                             }`}
               >
@@ -320,7 +321,7 @@ const AssetTable = ({
                        text-gray-500 hover:bg-gray-100 disabled:opacity-30
                        disabled:cursor-not-allowed transition-colors"
           >
-            ›
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       </div>

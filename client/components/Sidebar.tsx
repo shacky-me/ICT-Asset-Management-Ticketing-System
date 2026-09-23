@@ -1,9 +1,7 @@
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import Logo from "@/app/assets/COA.svg";
-import LogoText from "@/app/assets/LogoText.svg";
+import BrandMark from "@/components/BrandMark";
 import { navLinks } from "@/lib/navlinks";
 import { cn } from "@/lib/utils";
 import { Separator } from "./ui/separator";
@@ -48,8 +46,7 @@ const Sidebar = () => {
         {/* Logo + org info */}
         <div className="flex items-center gap-2 mb-2 px-5">
           <Link href="/overview" className="flex items-center gap-2">
-            <Image src={Logo} alt="Logo" className="h-10 w-10 shrink-0" />
-            <Image src={LogoText} alt="Logo Text" className="h-8 w-auto" />
+            <BrandMark variant="stacked" />
           </Link>
         </div>
 
@@ -73,7 +70,7 @@ const Sidebar = () => {
                     className={cn(
                       "flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-colors",
                       isActive
-                        ? "bg-[#EEF3FD] text-[#235FE7] font-semibold"
+                        ? "bg-[#EEF2F8] text-[#1E3A6E] font-semibold"
                         : "text-gray-600 hover:bg-gray-100 font-medium",
                     )}
                   >
@@ -81,7 +78,7 @@ const Sidebar = () => {
                       <Icon
                         className={cn(
                           "h-4 w-4",
-                          isActive ? "text-[#235FE7]" : "text-gray-500",
+                          isActive ? "text-[#1E3A6E]" : "text-gray-500",
                         )}
                       />
                       {link.label}
@@ -91,7 +88,7 @@ const Sidebar = () => {
                         ? unresolvedTicketCount
                         : link.badge
                     ) ? (
-                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[#235FE7] text-white">
+                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[#1E3A6E] text-white">
                         {link.href === "/tickets"
                           ? unresolvedTicketCount
                           : link.badge}
@@ -111,7 +108,7 @@ const Sidebar = () => {
           {canRegisterAsset(role) && (
             <Button
               onClick={() => setShowModal(true)}
-              className="w-full bg-[#235FE7] hover:bg-[#1a4fd6] cursor-pointer"
+              className="w-full bg-[#1E3A6E] hover:bg-[#172E57] cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               Register Asset
@@ -122,7 +119,7 @@ const Sidebar = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {/* Avatar */}
-              <div className="h-8 w-8 rounded-full bg-[#235FE7] flex items-center justify-center shrink-0">
+              <div className="h-8 w-8 rounded-full bg-[#1E3A6E] flex items-center justify-center shrink-0">
                 <span className="text-xs font-semibold text-white">
                   {profileInitials}
                 </span>

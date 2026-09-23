@@ -68,9 +68,9 @@ const OverviewPage = () => {
               ? `+${currentMonthAddedAssets} this month`
               : "Awaiting ICT response"
           }
-          subColor="text-[#235FE7]"
+          subColor="text-[#1E3A6E]"
           icon={showAssetOps ? Monitor : Ticket}
-          iconColor="text-[#235FE7]"
+          iconColor="text-[#1E3A6E]"
         />
         <StatCard
           label={showAssetOps ? "Open Tickets" : "Resolved This Month"}

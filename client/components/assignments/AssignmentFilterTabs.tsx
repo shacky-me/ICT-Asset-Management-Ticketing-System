@@ -39,7 +39,7 @@ const AssignmentFilterTabs = ({
             onClick={() => onTabChange(tab.label)}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
               active === tab.label
-                ? "bg-[#235FE7] text-white"
+                ? "bg-[#1E3A6E] text-white"
                 : "text-gray-500 border border-gray-200 hover:bg-gray-50"
             }`}
           >
@@ -48,7 +48,7 @@ const AssignmentFilterTabs = ({
               <span
                 className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                   active === tab.label
-                    ? "bg-white text-[#235FE7]"
+                    ? "bg-white text-[#1E3A6E]"
                     : "bg-red-500 text-white"
                 }`}
               >

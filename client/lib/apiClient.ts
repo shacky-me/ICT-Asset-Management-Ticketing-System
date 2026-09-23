@@ -73,16 +73,13 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     const errorText = await response.text();
+    let message = "";
     try {
-      const parsed = JSON.parse(errorText) as { message?: string };
-      throw new Error(
-        parsed.message || `Request failed with status ${response.status}`,
-      );
+      message = (JSON.parse(errorText) as { message?: string }).message || "";
     } catch {
-      throw new Error(
-        errorText || `Request failed with status ${response.status}`,
-      );
+      message = errorText;
     }
+    throw new Error(message || `Request failed with status ${response.status}`);
   }
 
   return (await response.json()) as T;
@@ -148,8 +145,8 @@ export async function getAuthMe(): Promise<MeResponse> {
 export async function changeTemporaryPassword(payload: {
   currentPassword: string;
   newPassword: string;
-}): Promise<MeResponse> {
-  const response = await apiRequest<{ user: ApiUserRaw }>(
+}): Promise<MeResponse & { token?: string }> {
+  const response = await apiRequest<{ user: ApiUserRaw; token?: string }>(
     "/auth/change-temporary-password",
     {
       method: "POST",
@@ -272,6 +269,7 @@ export type ApiAsset = {
   createdAt: string;
   department?: { name: string; id: number };
   procurement?: {
+    procurementDate?: string | null;
     warrantyEnd?: string | null;
     warrantyType?: string | null;
   } | null;
@@ -317,6 +315,7 @@ export type ApiTicket = {
   assetTag: string;
   status: "Open" | "In Progress" | "Pending" | "Resolved";
   created: string;
+  createdAt?: string;
 };
 
 export type ApiTicketStats = {

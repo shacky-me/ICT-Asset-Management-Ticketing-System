@@ -3,10 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Logo from "@/app/assets/Logo.svg";
+import BrandMark from "@/components/BrandMark";
 import {
   CheckCircle2,
   User,
@@ -15,6 +14,8 @@ import {
   Building2,
   Hash,
   ShieldCheck,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import { submitAccessRequest } from "@/lib/apiClient";
 
@@ -26,7 +27,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, { text: string; bg: string }> = {
-  staff: { text: "text-[#235FE7]", bg: "bg-[#8BA6EC]/20" },
+  staff: { text: "text-[#1E3A6E]", bg: "bg-[#9DB0D3]/20" },
   supervisor: { text: "text-[#875AC3]", bg: "bg-[#E6D5F8]/60" },
   officer: { text: "text-[#039b27]", bg: "bg-[#D4EDDA]" },
   administrator: { text: "text-[#B66231]", bg: "bg-[#FFF3CD]" },
@@ -161,7 +162,7 @@ const ReviewAndSubmit = () => {
   };
 
   const roleColors = ROLE_COLORS[accessRequest.role] ?? {
-    text: "text-[#235FE7]",
+    text: "text-[#1E3A6E]",
     bg: "bg-blue-50",
   };
   const roleLabel = ROLE_LABELS[accessRequest.role] ?? accessRequest.role;
@@ -171,14 +172,14 @@ const ReviewAndSubmit = () => {
       <div className="bg-[#fefefe] h-[80vh] flex flex-col border border-gray-200 rounded-lg shadow-lg shadow-gray-200">
         {/* Header */}
         <div className="flex flex-col items-center gap-4 px-16 pt-6 pb-4 border-b border-gray-100">
-          <Image src={Logo} alt="Logo" className="h-8 w-60" />
+          <BrandMark />
           <div className="w-full space-y-2">
             <h1 className="font-bold">Request Access</h1>
             <p className="text-sm text-gray-700">
               Step 3 of 3 •{" "}
               <span className="font-semibold">Review & Submit</span>
             </p>
-            <Progress value={100} className="[&>div]:bg-[#2B66E6]" />
+            <Progress value={100} className="[&>div]:bg-[#274A85]" />
           </div>
         </div>
 
@@ -192,7 +193,7 @@ const ReviewAndSubmit = () => {
               </p>
               <Link
                 href="/personal-info"
-                className="text-xs text-[#235FE7] hover:underline font-medium"
+                className="text-xs text-[#1E3A6E] hover:underline font-medium"
               >
                 Edit
               </Link>
@@ -245,7 +246,7 @@ const ReviewAndSubmit = () => {
               </p>
               <Link
                 href="/access-details"
-                className="text-xs text-[#235FE7] hover:underline font-medium"
+                className="text-xs text-[#1E3A6E] hover:underline font-medium"
               >
                 Edit
               </Link>
@@ -288,7 +289,7 @@ const ReviewAndSubmit = () => {
               `A temporary password is emailed to ${personalDetails.email || "your email"} after approval`,
             ].map((step, i) => (
               <div key={i} className="flex items-start gap-3">
-                <CheckCircle2 className="h-4 w-4 text-[#235FE7] shrink-0 mt-0.5" />
+                <CheckCircle2 className="h-4 w-4 text-[#1E3A6E] shrink-0 mt-0.5" />
                 <p className="text-xs text-gray-600 leading-relaxed">{step}</p>
               </div>
             ))}
@@ -302,7 +303,7 @@ const ReviewAndSubmit = () => {
             aria-hidden="true"
           >
             <div
-              className="h-full bg-[#235FE7] rounded-full"
+              className="h-full bg-[#1E3A6E] rounded-full"
               style={{
                 width: `${progress}%`,
                 transition: "width 25ms linear",
@@ -315,14 +316,14 @@ const ReviewAndSubmit = () => {
             <Link href="/access-details">
               <Button
                 variant="outline"
-                className="cursor-pointer w-fit font-bold"
+                className="cursor-pointer w-fit gap-1.5 font-bold"
                 disabled={isLoading}
               >
-                ← Back
+                <ArrowLeft aria-hidden="true" /> Back
               </Button>
             </Link>
             <Button
-              className="cursor-pointer bg-[#235FE7] w-fit font-bold disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 min-w-40 justify-center"
+              className="cursor-pointer bg-[#1E3A6E] w-fit font-bold disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 min-w-40 justify-center"
               onClick={handleSubmit}
               disabled={isLoading}
             >
@@ -352,7 +353,9 @@ const ReviewAndSubmit = () => {
                   <span className="text-sm">{getLoadingLabel(progress)}</span>
                 </>
               ) : (
-                "Submit Request →"
+                <>
+                  Submit Request <ArrowRight aria-hidden="true" />
+                </>
               )}
             </Button>
           </div>

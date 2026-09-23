@@ -2,6 +2,8 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportToCSV } from "@/app/utils/csvUtils";
+import { asAtTodayPeriod } from "@/app/utils/reportLetterhead";
+import { readCurrentUser } from "@/lib/session";
 import type { AssetRow } from "@/lib/assets";
 
 const tabs = ["All", "Assigned", "In Store", "Maintenance", "Flagged"];
@@ -26,7 +28,11 @@ const AssetFilterTabs = ({ active, onTabChange, assets }: Props) => {
       Warranty: a.warranty,
     }));
 
-    exportToCSV(formatted, "asset-register.csv");
+    exportToCSV(formatted, "asset-register.csv", {
+      title: "Asset Register",
+      period: asAtTodayPeriod(),
+      preparedBy: readCurrentUser()?.name,
+    });
   };
   return (
     <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100">
@@ -37,7 +43,7 @@ const AssetFilterTabs = ({ active, onTabChange, assets }: Props) => {
             onClick={() => onTabChange(tab)}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
               active === tab
-                ? "bg-[#235FE7] text-white"
+                ? "bg-[#1E3A6E] text-white"
                 : "text-gray-500 border border-gray-200 hover:bg-gray-50"
             }`}
           >

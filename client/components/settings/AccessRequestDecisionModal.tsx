@@ -86,7 +86,7 @@ export default function AccessRequestDecisionModal({
             className={
               isReject
                 ? "bg-red-600 hover:bg-red-700"
-                : "bg-[#235FE7] hover:bg-[#1a4fd6]"
+                : "bg-[#1E3A6E] hover:bg-[#172E57]"
             }
           >
             {isLoading

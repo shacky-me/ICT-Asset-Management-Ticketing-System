@@ -119,10 +119,10 @@ const AssignmentTable = ({
                 key={a.ref}
                 className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
               >
-                <td className="px-4 py-4 text-[#235FE7] font-semibold text-xs truncate">
+                <td className="px-4 py-4 text-[#1E3A6E] font-semibold text-xs truncate">
                   {a.ref}
                 </td>
-                <td className="px-4 py-4 text-[#235FE7] text-xs font-medium truncate">
+                <td className="px-4 py-4 text-[#1E3A6E] text-xs font-medium truncate">
                   {a.assetTag}
                 </td>
                 <td className="px-4 py-4 text-gray-900 font-medium text-xs truncate">
@@ -159,7 +159,7 @@ const AssignmentTable = ({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setSelectedAssignment(a)}
-                      className="text-xs text-[#235FE7] font-semibold hover:underline"
+                      className="text-xs text-[#1E3A6E] font-semibold hover:underline"
                     >
                       View
                     </button>
@@ -181,7 +181,7 @@ const AssignmentTable = ({
       </table>
 
       <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100">
-        <p className="text-xs text-[#235FE7] font-medium">
+        <p className="text-xs text-[#1E3A6E] font-medium">
           Showing {startIndex}-{endIndex} of {filtered.length} assignments
         </p>
         <div className="flex items-center gap-2">

@@ -1,8 +1,18 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  LETTERHEAD_LINES,
+  SYSTEM_NAME,
+  generatedLine,
+  loadCoatOfArms,
+  type ReportMeta,
+} from "@/app/utils/reportLetterhead";
 
-export function exportSimpleTableToPDF(
-  title: string,
+const NAVY: [number, number, number] = [30, 58, 110];
+const GREY: [number, number, number] = [100, 100, 100];
+
+export async function exportSimpleTableToPDF(
+  meta: ReportMeta,
   rows: Array<Record<string, string | number>>,
   fileName: string,
 ) {
@@ -11,72 +21,143 @@ export function exportSimpleTableToPDF(
       ? "landscape"
       : "portrait";
   const doc = new jsPDF({ unit: "pt", format: "a4", orientation });
-  const margin = 28;
-  let y = 50;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const centerX = pageWidth / 2;
+  const margin = 36;
+  const coatOfArms = await loadCoatOfArms();
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(title, margin, y);
-  y += 28;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y);
-  y += 18;
-
-  const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-  if (headers.length === 0) {
-    doc.text("No data available.", margin, y);
-    doc.save(fileName);
-    return;
+  // Full letterhead on the first page.
+  let y = 36;
+  if (coatOfArms) {
+    const width = 50;
+    const height = width * (236 / 250);
+    doc.addImage(coatOfArms, "PNG", centerX - width / 2, y, width, height);
+    y += height + 16;
+  } else {
+    y += 12;
   }
 
-  const body = rows
-    .slice(0, 200)
-    .map((row) => headers.map((header) => String(row[header] ?? "")));
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text(LETTERHEAD_LINES[0], centerX, y, { align: "center" });
+  y += 14;
+  doc.setFontSize(10);
+  doc.text(LETTERHEAD_LINES[1], centerX, y, { align: "center" });
+  y += 13;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.text(LETTERHEAD_LINES[2], centerX, y, { align: "center" });
+  y += 10;
 
-  autoTable(doc, {
-    head: [headers],
-    body,
-    startY: y,
-    margin: { top: 28, right: margin, bottom: 28, left: margin },
-    tableWidth: "auto",
-    theme: "grid",
-    styles: {
-      font: "helvetica",
-      fontSize: 9,
-      cellPadding: { top: 6, right: 8, bottom: 6, left: 8 },
-      overflow: "linebreak",
-      valign: "middle",
-      textColor: [20, 20, 20],
-      lineColor: [220, 220, 220],
-      lineWidth: 0.6,
-    },
-    headStyles: {
-      fillColor: [37, 95, 231],
-      textColor: [255, 255, 255],
-      fontStyle: "bold",
-      halign: "left",
-      valign: "middle",
-      minCellHeight: 24,
-    },
-    bodyStyles: {
-      minCellHeight: 22,
-      halign: "left",
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    didDrawPage: () => {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text(title, margin, 50);
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(1.5);
+  doc.line(margin, y, pageWidth - margin, y);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y + 3, pageWidth - margin, y + 3);
+  y += 24;
 
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, margin, 78);
-    },
-  });
+  doc.setTextColor(...NAVY);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text(meta.title.toUpperCase(), centerX, y, { align: "center" });
+  y += 16;
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.text(meta.period, centerX, y, { align: "center" });
+  y += 13;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...GREY);
+  if (meta.basis) {
+    doc.text(meta.basis, centerX, y, { align: "center" });
+    y += 12;
+  }
+  doc.text(generatedLine(meta), centerX, y, { align: "center" });
+  y += 16;
+
+  const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+
+  if (headers.length === 0) {
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.text("No records for this period.", centerX, y + 10, {
+      align: "center",
+    });
+  } else {
+    const body = rows.map((row) =>
+      headers.map((header) => String(row[header] ?? "")),
+    );
+
+    autoTable(doc, {
+      head: [headers],
+      body,
+      startY: y,
+      margin: { top: 60, right: margin, bottom: 48, left: margin },
+      tableWidth: "auto",
+      theme: "grid",
+      styles: {
+        font: "helvetica",
+        fontSize: 9,
+        cellPadding: { top: 5, right: 7, bottom: 5, left: 7 },
+        overflow: "linebreak",
+        valign: "middle",
+        textColor: [20, 20, 20],
+        lineColor: [210, 214, 220],
+        lineWidth: 0.6,
+      },
+      headStyles: {
+        fillColor: NAVY,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        halign: "left",
+        valign: "middle",
+        minCellHeight: 22,
+      },
+      bodyStyles: {
+        minCellHeight: 20,
+        halign: "left",
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 251],
+      },
+      didDrawPage: (data) => {
+        if (data.pageNumber === 1) return;
+        // Running header on continuation pages.
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(...NAVY);
+        doc.text("SDJHRCA  |  ICT Department", margin, 32);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...GREY);
+        doc.text(`${meta.title}  |  ${meta.period}`, pageWidth - margin, 32, {
+          align: "right",
+        });
+        doc.setDrawColor(...NAVY);
+        doc.setLineWidth(0.5);
+        doc.line(margin, 40, pageWidth - margin, 40);
+      },
+    });
+  }
+
+  // Footer with page numbers, drawn once the page count is known.
+  const pageCount = doc.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page++) {
+    doc.setPage(page);
+    doc.setDrawColor(210, 214, 220);
+    doc.setLineWidth(0.5);
+    doc.line(margin, pageHeight - 34, pageWidth - margin, pageHeight - 34);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...GREY);
+    doc.text(`${SYSTEM_NAME}  |  Official Report`, margin, pageHeight - 22);
+    doc.text(`Page ${page} of ${pageCount}`, pageWidth - margin, pageHeight - 22, {
+      align: "right",
+    });
+  }
 
   doc.save(fileName);
 }

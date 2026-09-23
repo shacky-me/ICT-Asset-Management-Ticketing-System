@@ -10,8 +10,8 @@ const AssetStatsBar = ({ total, assigned, inStore, maintenance }: Props) => {
     {
       label: "Total",
       value: String(total),
-      color: "text-[#235FE7]",
-      border: "border-t-[#235FE7]",
+      color: "text-[#1E3A6E]",
+      border: "border-t-[#1E3A6E]",
     },
     {
       label: "Assigned",

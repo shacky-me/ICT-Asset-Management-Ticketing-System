@@ -1,10 +1,12 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import ConfirmActionModal from "@/components/ui/ConfirmActionModal";
-import { Download } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight } from "lucide-react";
 import RegisterAssetModal from "../modals/RegisterAssetModal";
 import { useMemo, useState } from "react";
 import { exportToCSV } from "@/app/utils/csvUtils";
+import { asAtTodayPeriod } from "@/app/utils/reportLetterhead";
+import { readCurrentUser } from "@/lib/session";
 import AssetDetailsModal from "@/components/assets/AssetDetailsModal";
 import { deleteAsset } from "@/lib/apiClient";
 import { publishAssetsChanged, type AssetRow } from "@/lib/assets";
@@ -91,7 +93,11 @@ const AssetRegisterTable = ({
       Department: a.department,
     }));
 
-    exportToCSV(formatted, "asset-register.csv");
+    exportToCSV(formatted, "asset-register.csv", {
+      title: "Asset Register",
+      period: asAtTodayPeriod(),
+      preparedBy: readCurrentUser()?.name,
+    });
   };
 
   const confirmRemoveAsset = async () => {
@@ -150,7 +156,7 @@ const AssetRegisterTable = ({
             </Button>
             <Button
               onClick={() => setShowModal(true)}
-              className="bg-[#235FE7] gap-2 text-sm cursor-pointer"
+              className="bg-[#1E3A6E] gap-2 text-sm cursor-pointer"
             >
               + Register
             </Button>
@@ -183,7 +189,7 @@ const AssetRegisterTable = ({
             <tbody className="divide-y divide-gray-100">
               {visibleRows.map((a) => (
                 <tr key={a.tag} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-[#235FE7] font-medium">
+                  <td className="px-4 py-3 text-[#1E3A6E] font-medium">
                     {a.tag}
                   </td>
                   <td className="px-4 py-3 text-gray-700">{a.name}</td>
@@ -205,7 +211,7 @@ const AssetRegisterTable = ({
                     <div className="flex items-center gap-3 whitespace-nowrap">
                       <button
                         onClick={() => setSelectedAsset(a)}
-                        className="text-[#235FE7] font-medium hover:underline"
+                        className="text-[#1E3A6E] font-medium hover:underline"
                       >
                         View
                       </button>
@@ -233,7 +239,7 @@ const AssetRegisterTable = ({
               disabled={effectivePage === 1}
               className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40"
             >
-              ←
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
             <span className="text-xs text-gray-500 px-2">
               Page {effectivePage} of {totalPages}
@@ -245,7 +251,7 @@ const AssetRegisterTable = ({
               disabled={effectivePage === totalPages}
               className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40"
             >
-              →
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>
