@@ -163,3 +163,23 @@ export const removeAsset = async (req: AuthRequest, res: Response) => {
       .json({ message: publicErrorMessage(error, "Error removing asset") });
   }
 };
+
+export const staffDeviceCoverage = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (req.user.role !== "ICT_ADMIN" && req.user.role !== "ICT_OFFICER") {
+      return res.status(403).json({
+        message: "Only ICT Admin and ICT Officer can view device coverage",
+      });
+    }
+
+    return res.status(200).json(await assetService.getStaffDeviceCoverage());
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: publicErrorMessage(error, "Error loading device coverage") });
+  }
+};

@@ -374,3 +374,66 @@ export const removeAsset = async (id: number, userId: number) => {
 
   return { id };
 };
+
+// Which officers currently hold a computer (laptop/desktop) and which do not.
+const COMPUTER_CATEGORIES = ["Laptop", "Desktop", "Workstation"];
+
+export const getStaffDeviceCoverage = async () => {
+  const [staff, activeAssignments] = await Promise.all([
+    prisma.user.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        fullName: true,
+        staffNo: true,
+        department: { select: { name: true } },
+      },
+      orderBy: { fullName: "asc" },
+    }),
+    prisma.assetAssignment.findMany({
+      where: {
+        status: "ACTIVE",
+        assigneeType: "PERSON",
+        asset: { category: { in: COMPUTER_CATEGORIES } },
+      },
+      select: {
+        payRollNo: true,
+        assignedTo: true,
+        asset: { select: { category: true, tagNo: true } },
+      },
+    }),
+  ]);
+
+  const heldBy = new Map<string, { category: string; tagNo: string }[]>();
+  for (const assignment of activeAssignments) {
+    const key = String(assignment.payRollNo || "").trim().toLowerCase();
+    if (!key || !assignment.asset) continue;
+    const list = heldBy.get(key) || [];
+    list.push({ category: assignment.asset.category, tagNo: assignment.asset.tagNo });
+    heldBy.set(key, list);
+  }
+
+  const withDevice: unknown[] = [];
+  const withoutDevice: unknown[] = [];
+
+  for (const person of staff) {
+    const devices = heldBy.get(person.staffNo.trim().toLowerCase()) || [];
+    const entry = {
+      id: person.id,
+      fullName: person.fullName,
+      staffNo: person.staffNo,
+      department: person.department?.name || "Unassigned",
+      devices,
+    };
+    if (devices.length > 0) withDevice.push(entry);
+    else withoutDevice.push(entry);
+  }
+
+  return {
+    totalStaff: staff.length,
+    withDeviceCount: withDevice.length,
+    withoutDeviceCount: withoutDevice.length,
+    withDevice,
+    withoutDevice,
+  };
+};

@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../types/auth.types.js";
 import {
+  assignTicket,
   createTicket,
   getTicketStats,
   listTickets,
@@ -51,7 +52,11 @@ export const createTicketHandler = async (
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const ticket = await createTicket(req.body, requesterId);
+  // Tickets are always raised unassigned; ICT staff allocate them afterwards.
+  const ticket = await createTicket(
+    { ...req.body, assignedTo: null },
+    requesterId,
+  );
 
   const requester = await prisma.user.findUnique({
     where: { id: requesterId },
@@ -183,6 +188,59 @@ export const updateTicketStatusHandler = async (
 
   return res.status(200).json({
     message: `Ticket status updated to ${result.ticket.status}`,
+    ticket: result.ticket,
+  });
+};
+
+export const assignTicketHandler = async (
+  req: AuthRequest<{ assignedTo?: string }>,
+  res: Response,
+) => {
+  const requesterRole = String(req.user?.role || "");
+
+  if (!Number.isFinite(Number(req.user?.id)) || !requesterRole) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const ticketId = String(req.params.ticketId || "").trim();
+  if (!ticketId) {
+    return res.status(400).json({ message: "Ticket ID is required" });
+  }
+
+  const assignee = String(req.body?.assignedTo || "").trim();
+  if (!assignee || assignee.length > 120) {
+    return res.status(400).json({ message: "A valid assignee is required" });
+  }
+
+  // Only existing ICT staff may be given tickets.
+  const staff = await prisma.user.findFirst({
+    where: {
+      fullName: assignee,
+      isActive: true,
+      role: { in: ["ICT_ADMIN", "ICT_OFFICER"] },
+    },
+    select: { id: true },
+  });
+
+  if (!staff) {
+    return res
+      .status(400)
+      .json({ message: "Tickets can only be assigned to active ICT staff" });
+  }
+
+  const result = await assignTicket(ticketId, assignee, requesterRole);
+
+  if (!result.ok) {
+    if (result.reason === "not_found") {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+    return res
+      .status(403)
+      .json({ message: "Only ICT staff can assign tickets" });
+  }
+
+  return res.status(200).json({
+    message: `Ticket assigned to ${assignee}`,
     ticket: result.ticket,
   });
 };

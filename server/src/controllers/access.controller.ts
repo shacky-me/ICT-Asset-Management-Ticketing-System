@@ -19,10 +19,10 @@ const ALERT_WINDOW_MS = 60 * 60 * 1000;
 function resolveRequestedRole(
   roleRequested?: string,
   role?: string,
-): "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN" | null {
+): "END_USER" | "HOD" | "ICT_OFFICER" | "ICT_ADMIN" | "PS" | "DIRECTOR" | "ASSISTANT_DIRECTOR" | null {
   if (
     roleRequested === "END_USER" ||
-    roleRequested === "SUPERVISOR" ||
+    roleRequested === "HOD" ||
     roleRequested === "ICT_OFFICER" ||
     roleRequested === "ICT_ADMIN"
   ) {
@@ -34,7 +34,7 @@ function resolveRequestedRole(
   if (!normalizedRole) return "END_USER";
   if (normalizedRole.includes("admin")) return "ICT_ADMIN";
   if (normalizedRole.includes("supervisor") || normalizedRole.includes("hod")) {
-    return "SUPERVISOR";
+    return "HOD";
   }
   if (normalizedRole.includes("officer") || normalizedRole.includes("ict")) {
     return "ICT_OFFICER";
@@ -130,7 +130,7 @@ export const createAccessRequest = async (
     if (!resolvedRole) {
       return res.status(400).json({
         message:
-          "Invalid role requested. Use END_USER, SUPERVISOR, ICT_OFFICER, or ICT_ADMIN.",
+          "Invalid role requested. Use END_USER, HOD, ICT_OFFICER, or ICT_ADMIN.",
       });
     }
 
@@ -145,6 +145,38 @@ export const createAccessRequest = async (
 
     if (!fullName || !resolvedStaffNo || !jobTitle || !normalizedEmail) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // A payroll number identifies one officer, so it cannot be reused.
+    const staffNoTaken = await prisma.user.findFirst({
+      where: {
+        staffNo: { equals: resolvedStaffNo, mode: "insensitive" },
+        email: { not: normalizedEmail },
+      },
+      select: { id: true },
+    });
+
+    if (staffNoTaken) {
+      return res.status(409).json({
+        message:
+          "This payroll number is already registered to another account. Contact the Admin if this is an error.",
+      });
+    }
+
+    const staffNoPending = await prisma.accessRequest.findFirst({
+      where: {
+        staffNo: { equals: resolvedStaffNo, mode: "insensitive" },
+        email: { not: normalizedEmail },
+        approved: false,
+      },
+      select: { id: true },
+    });
+
+    if (staffNoPending) {
+      return res.status(409).json({
+        message:
+          "A pending request already uses this payroll number. Contact the Admin if this is an error.",
+      });
     }
 
     const existing = await prisma.accessRequest.findFirst({

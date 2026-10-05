@@ -6,7 +6,7 @@ export interface CreateAccessRequestBody {
   email: string;
   departmentId?: number;
   department?: string;
-  roleRequested?: "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN";
+  roleRequested?: "END_USER" | "HOD" | "ICT_OFFICER" | "ICT_ADMIN" | "PS" | "DIRECTOR" | "ASSISTANT_DIRECTOR";
   role?: string;
   reason?: string;
 }

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  staffDeviceCoverage,
   createAsset,
   getAssets,
   getStats,
@@ -12,6 +13,7 @@ import { authenticateToken } from "../middlewares/auth.middleware.js";
 const router: Router = Router();
 
 router.get("/status", authenticateToken, getStats);
+router.get("/device-coverage", authenticateToken, staffDeviceCoverage);
 
 router.get("/", authenticateToken, getAssets);
 

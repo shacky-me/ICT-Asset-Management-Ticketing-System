@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
   changeTemporaryPassword,
+  createUserAccount,
+  getDirectory,
   forgotPassword,
   login,
   logout,
@@ -26,7 +28,9 @@ router.post(
   changeTemporaryPassword,
 );
 router.get("/auth/users", authenticateToken, getAllUsers);
+router.post("/auth/users", authenticateToken, createUserAccount);
 router.get("/auth/support-staff", authenticateToken, getSupportStaff);
+router.get("/auth/directory", authenticateToken, getDirectory);
 router.patch("/auth/users/:userId/role", authenticateToken, updateUserRole);
 router.delete("/auth/users/:userId", authenticateToken, removeUserAccount);
 

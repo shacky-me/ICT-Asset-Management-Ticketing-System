@@ -3,7 +3,10 @@ import bcrypt from "bcrypt";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { prisma } from "../prisma.js";
 import type { AuthRequest } from "../types/auth.types.js";
-import { sendPasswordResetEmail } from "../services/emailService.js";
+import {
+  sendAccessEmail,
+  sendPasswordResetEmail,
+} from "../services/emailService.js";
 import { generateTempPassword } from "../utils/generateRandomPassword.js";
 import { passwordFingerprint } from "../utils/sessionFingerprint.js";
 import {
@@ -22,7 +25,10 @@ const RESET_WINDOW_MS = 15 * 60 * 1000;
 function toRoleLabel(role: string): string {
   if (role === "ICT_ADMIN") return "ICT Administrator";
   if (role === "ICT_OFFICER") return "ICT Officer";
-  if (role === "SUPERVISOR") return "Supervisor";
+  if (role === "PS") return "Principal Secretary";
+  if (role === "DIRECTOR") return "Director";
+  if (role === "ASSISTANT_DIRECTOR") return "Assistant Director";
+  if (role === "HOD") return "HOD";
   return "End User";
 }
 
@@ -629,7 +635,15 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const allowedRoles = ["END_USER", "SUPERVISOR", "ICT_OFFICER", "ICT_ADMIN"];
+    const allowedRoles = [
+      "END_USER",
+      "HOD",
+      "ICT_OFFICER",
+      "ICT_ADMIN",
+      "PS",
+      "DIRECTOR",
+      "ASSISTANT_DIRECTOR",
+    ];
 
     if (!allowedRoles.includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
@@ -644,7 +658,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        role: role as "END_USER" | "SUPERVISOR" | "ICT_OFFICER" | "ICT_ADMIN",
+        role: role as "END_USER" | "HOD" | "ICT_OFFICER" | "ICT_ADMIN" | "PS" | "DIRECTOR" | "ASSISTANT_DIRECTOR",
       },
       select: {
         id: true,
@@ -714,6 +728,166 @@ export const removeUserAccount = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error("REMOVE USER ACCOUNT ERROR:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+// Admins can create an account directly instead of waiting for a request.
+export const createUserAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!isAdminRole(String(req.user?.role || ""))) {
+      return res.status(403).json({
+        message: "Unauthorized. Admin access required.",
+      });
+    }
+
+    const fullName = String(req.body?.fullName || "").trim();
+    const staffNo = String(req.body?.staffNo || req.body?.staffNumber || "").trim();
+    const jobTitle = String(req.body?.jobTitle || "").trim();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const role = String(req.body?.role || "").trim();
+    const departmentName = String(req.body?.department || "").trim();
+    const departmentId = Number(req.body?.departmentId);
+
+    if (!fullName || !staffNo || !jobTitle || !email) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const allowedRoles = [
+      "END_USER",
+      "HOD",
+      "ICT_OFFICER",
+      "ICT_ADMIN",
+      "PS",
+      "DIRECTOR",
+      "ASSISTANT_DIRECTOR",
+    ];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    if (!Number.isFinite(departmentId) && !departmentName) {
+      return res.status(400).json({ message: "Department is required" });
+    }
+
+    // Accept either an id or a name, matching the access request flow.
+    const department = Number.isFinite(departmentId)
+      ? await prisma.department.findUnique({
+          where: { id: departmentId },
+          select: { id: true },
+        })
+      : await prisma.department.upsert({
+          where: { name: departmentName },
+          update: {},
+          create: { name: departmentName },
+          select: { id: true },
+        });
+
+    if (!department) {
+      return res.status(400).json({ message: "Department not found" });
+    }
+
+    const existingEmail = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true },
+    });
+
+    if (existingEmail) {
+      return res
+        .status(409)
+        .json({ message: "An account with this email already exists" });
+    }
+
+    const existingStaffNo = await prisma.user.findFirst({
+      where: { staffNo: { equals: staffNo, mode: "insensitive" } },
+      select: { id: true },
+    });
+
+    if (existingStaffNo) {
+      return res.status(409).json({
+        message: "This payroll number is already registered to another account",
+      });
+    }
+
+    const tempPassword = generateTempPassword();
+    const hashedPassword = await bcrypt.hash(tempPassword.trim(), 10);
+
+    const user = await prisma.user.create({
+      data: {
+        fullName,
+        staffNo,
+        jobTitle,
+        email,
+        password: hashedPassword,
+        role: role as "END_USER" | "HOD" | "ICT_OFFICER" | "ICT_ADMIN" | "PS" | "DIRECTOR" | "ASSISTANT_DIRECTOR",
+        departmentId: department.id,
+        isActive: true,
+        mustChangePassword: true,
+      },
+      include: { department: true },
+    });
+
+    try {
+      await sendAccessEmail({
+        to: user.email,
+        name: user.fullName,
+        tempPassword,
+      });
+    } catch (emailError) {
+      console.error(
+        "[USER CREATE] Failed to send access email to:",
+        user.email,
+        emailError instanceof Error ? emailError.message : emailError,
+      );
+    }
+
+    return res.status(201).json({
+      message: "Account created and temporary password sent",
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        staffNo: user.staffNo,
+        jobTitle: user.jobTitle,
+        role: toRoleLabel(user.role),
+        department: user.department.name,
+      },
+    });
+  } catch (error) {
+    console.error("CREATE USER ERROR:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// A light list of active officers, used when choosing who to send a document
+// to. Any signed-in officer may read it; it carries no contact details.
+export const getDirectory = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const users = await prisma.user.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        fullName: true,
+        role: true,
+        department: { select: { id: true, name: true } },
+      },
+      orderBy: [{ role: "asc" }, { fullName: "asc" }],
+    });
+
+    return res.status(200).json({
+      users: users.map((user) => ({
+        id: user.id,
+        fullName: user.fullName,
+        role: toRoleLabel(user.role),
+        department: user.department.name,
+        departmentId: user.department.id,
+      })),
+    });
+  } catch (error) {
+    console.error("DIRECTORY ERROR:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

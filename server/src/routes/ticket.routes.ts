@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authenticateToken } from "../middlewares/auth.middleware.js";
 import {
+  assignTicketHandler,
   createTicketHandler,
   listTicketsHandler,
   resolveTicketHandler,
@@ -16,5 +17,6 @@ router.get("/stats", ticketStatsHandler);
 router.post("/", createTicketHandler);
 router.patch("/:ticketId/status", updateTicketStatusHandler);
 router.patch("/:ticketId/resolve", resolveTicketHandler);
+router.patch("/:ticketId/assign", assignTicketHandler);
 
 export default router;

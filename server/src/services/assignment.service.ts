@@ -1,5 +1,18 @@
 import { prisma } from "../prisma.js";
 
+// Shared equipment (printers, scanners) belongs to an office, not a person,
+// so it does not have to be handed over when an officer is transferred.
+export const OFFICE_ASSIGNED_CATEGORIES = ["Printer", "Scanner"];
+
+export function isOfficeAssignedCategory(category?: string | null): boolean {
+  const value = String(category || "").trim().toLowerCase();
+  return OFFICE_ASSIGNED_CATEGORIES.some((item) => item.toLowerCase() === value);
+}
+
+export function officeLabel(departmentName: string, roomNumber: string): string {
+  return `${departmentName.trim()} - Room ${roomNumber.trim()}`;
+}
+
 export const createAssignment = async (data: any, issuerId: number) => {
   const {
     assetId,
@@ -13,6 +26,45 @@ export const createAssignment = async (data: any, issuerId: number) => {
     notes,
     expectedReturnCondition,
   } = data;
+
+  const asset = await prisma.asset.findUnique({
+    where: { id: Number(assetId) },
+    select: { category: true },
+  });
+
+  if (!asset) {
+    throw new Error("Asset not found");
+  }
+
+  const department = await prisma.department.findUnique({
+    where: { id: Number(departmentId) },
+    select: { name: true },
+  });
+
+  if (!department) {
+    throw new Error("Department not found");
+  }
+
+  const officeAssigned = isOfficeAssignedCategory(asset.category);
+  const room = String(roomNumber || "").trim();
+
+  if (officeAssigned && !room) {
+    throw new Error(
+      "Printers and scanners are assigned to an office: room number is required",
+    );
+  }
+
+  if (!officeAssigned && !String(payRollNo || "").trim()) {
+    throw new Error("Payroll number is required");
+  }
+
+  const assigneeName = officeAssigned
+    ? officeLabel(department.name, room)
+    : assignedTo;
+
+  if (!String(assigneeName || "").trim()) {
+    throw new Error("Assignee is required");
+  }
 
   return await prisma.$transaction(async (tx) => {
     const year = new Date().getFullYear();
@@ -28,13 +80,14 @@ export const createAssignment = async (data: any, issuerId: number) => {
       data: {
         refNo,
         assetId: Number(assetId),
-        assignedTo,
-        payRollNo,
+        assignedTo: assigneeName,
+        payRollNo: officeAssigned ? null : payRollNo,
+        assigneeType: officeAssigned ? "OFFICE" : "PERSON",
         departmentId: Number(departmentId),
         userId: issuerId,
         assignedAt: new Date(dateOfAssignment),
         floorLevel,
-        roomNumber,
+        roomNumber: room || roomNumber,
         accessories,
         notes,
         expectedReturnCondition,
@@ -50,7 +103,7 @@ export const createAssignment = async (data: any, issuerId: number) => {
     await tx.activityLog.create({
       data: {
         type: "ASSIGNMENT",
-        message: `Asset assigned to ${assignedTo} (Ref: ${refNo})`,
+        message: `Asset assigned to ${assigneeName} (Ref: ${refNo})`,
         assetId: Number(assetId),
         userId: issuerId,
       },

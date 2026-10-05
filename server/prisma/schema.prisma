@@ -26,6 +26,16 @@ model User {
   activityLogs    ActivityLog[]
   assetAssignment AssetAssignment[]
 
+  documentsInitiated   Document[]           @relation("DocumentInitiator")
+  documentsDecided     Document[]           @relation("DocumentDecider")
+  documentSharesSent   DocumentShare[]      @relation("DocumentSharedBy")
+  documentSharesGot    DocumentShare[]      @relation("DocumentShareTarget")
+  documentComments     DocumentComment[]
+  vehiclesAdded        Vehicle[]
+  mileageEntries       VehicleMileage[]
+  documentAttachments  DocumentAttachment[]
+  documentEvents       DocumentEvent[]
+
   isActive           Boolean  @default(true)
   mustChangePassword Boolean  @default(false)
   createdAt          DateTime @default(now())
@@ -54,6 +64,8 @@ model Department {
   assets          Asset[]
   assetAssignment AssetAssignment[]
   accessRequest   AccessRequest[]
+  documents       Document[]
+  documentShares  DocumentShare[]
 }
 
 model Asset {
@@ -123,7 +135,8 @@ model AssetAssignment {
   userId                  Int?
   user                    User?            @relation(fields: [userId], references: [id])
   assignedTo              String
-  payRollNo               String
+  payRollNo               String?
+  assigneeType            AssigneeType     @default(PERSON)
   floorLevel              String?
   roomNumber              String?
   accessories             String?
@@ -158,9 +171,12 @@ enum ActivityType {
 
 enum Role {
   END_USER
-  SUPERVISOR
+  HOD
   ICT_OFFICER
   ICT_ADMIN
+  PS
+  DIRECTOR
+  ASSISTANT_DIRECTOR
 }
 
 enum AssetStatus {
@@ -171,8 +187,164 @@ enum AssetStatus {
   Flagged
 }
 
+enum AssigneeType {
+  PERSON
+  OFFICE
+}
+
 enum AssignmentStatus {
   ACTIVE
   RETURNED
   OVERDUE
+}
+
+// ─── Document tracking ───────────────────────────────────────────────────────
+
+enum DocumentStatus {
+  OPEN
+  APPROVED
+  REJECTED
+}
+
+enum DocumentAudience {
+  USER
+  DEPARTMENT_STAFF
+  ALL_HODS
+  ALL_STAFF
+}
+
+enum DocumentEventType {
+  INITIATED
+  SHARED
+  COMMENTED
+  ATTACHED
+  APPROVED
+  REJECTED
+}
+
+model Document {
+  id           Int            @id @default(autoincrement())
+  refNo        String         @unique
+  title        String
+  summary      String?
+  content      String?
+  initiatorId  Int
+  initiator    User           @relation("DocumentInitiator", fields: [initiatorId], references: [id])
+  departmentId Int
+  department   Department     @relation(fields: [departmentId], references: [id])
+  status       DocumentStatus @default(OPEN)
+  isCritical   Boolean        @default(false)
+  decidedById  Int?
+  decidedBy    User?          @relation("DocumentDecider", fields: [decidedById], references: [id])
+  decidedAt    DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  shares      DocumentShare[]
+  comments    DocumentComment[]
+  attachments DocumentAttachment[]
+  events      DocumentEvent[]
+}
+
+model DocumentShare {
+  id                 Int              @id @default(autoincrement())
+  documentId         Int
+  document           Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  audience           DocumentAudience
+  targetUserId       Int?
+  targetUser         User?            @relation("DocumentShareTarget", fields: [targetUserId], references: [id])
+  targetDepartmentId Int?
+  targetDepartment   Department?      @relation(fields: [targetDepartmentId], references: [id])
+  sharedById         Int
+  sharedBy           User             @relation("DocumentSharedBy", fields: [sharedById], references: [id])
+  note               String?
+  createdAt          DateTime         @default(now())
+}
+
+model DocumentComment {
+  id         Int      @id @default(autoincrement())
+  documentId Int
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  authorId   Int
+  author     User     @relation(fields: [authorId], references: [id])
+  body       String
+  createdAt  DateTime @default(now())
+}
+
+model DocumentAttachment {
+  id         Int      @id @default(autoincrement())
+  documentId Int
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploaderId Int
+  uploader   User     @relation(fields: [uploaderId], references: [id])
+  fileName   String
+  storedName String   @unique
+  mimeType   String
+  size       Int
+  createdAt  DateTime @default(now())
+}
+
+model DocumentEvent {
+  id         Int               @id @default(autoincrement())
+  documentId Int
+  document   Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  actorId    Int
+  actor      User              @relation(fields: [actorId], references: [id])
+  type       DocumentEventType
+  detail     String?
+  createdAt  DateTime          @default(now())
+}
+
+// ─── Fleet ───────────────────────────────────────────────────────────────────
+// Seen and managed by the PS, Director and Assistant Director only.
+
+enum VehicleStatus {
+  ACTIVE
+  IN_SERVICE
+  RETIRED
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  HYBRID
+  ELECTRIC
+}
+
+model Vehicle {
+  id                Int           @id @default(autoincrement())
+  plate             String        @unique
+  make              String
+  model             String?
+  year              Int?
+  colour            String?
+  engineNo          String?
+  chassisNo         String?
+  vin               String?
+  fuel              FuelType      @default(PETROL)
+  status            VehicleStatus @default(ACTIVE)
+  condition         String?
+  remarks           String?
+  driver            String?
+  assignedTo        String?
+  mileage           Int           @default(0)
+  serviceIntervalKm Int           @default(10000)
+  lastServiceMileage Int          @default(0)
+  addedById         Int
+  addedBy           User          @relation(fields: [addedById], references: [id])
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  mileageLog VehicleMileage[]
+}
+
+model VehicleMileage {
+  id           Int      @id @default(autoincrement())
+  vehicleId    Int
+  vehicle      Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  mileage      Int
+  note         String?
+  recordedById Int
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime @default(now())
 }

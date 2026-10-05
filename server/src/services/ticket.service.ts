@@ -273,3 +273,42 @@ export const resolveTicket = (
     );
     return result;
   })();
+
+// Tickets are raised without an assignee; only ICT staff allocate them,
+// so staff cannot send work to an officer who is away.
+export const assignTicket = async (
+  ticketId: string,
+  assignee: string,
+  requesterRole: string,
+): Promise<
+  | { ok: true; ticket: TicketRecord }
+  | { ok: false; reason: "not_found" | "forbidden" }
+> => {
+  await ensureTicketTable();
+
+  const normalizedRole = normalizeRole(requesterRole);
+  const canAssign =
+    normalizedRole === "ICT_ADMIN" || normalizedRole === "ICT_OFFICER";
+
+  if (!canAssign) {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  const rows = await prisma.$queryRawUnsafe<TicketRow[]>(
+    `
+      UPDATE "Ticket"
+      SET assigned_to = $2
+      WHERE id = $1
+      RETURNING id, issue, priority, department, assigned_to, asset_tag, status, created_at, raised_by_user_id;
+    `,
+    ticketId,
+    assignee,
+  );
+
+  const updated = rows[0];
+  if (!updated) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  return { ok: true, ticket: mapRowToTicket(updated) };
+};
