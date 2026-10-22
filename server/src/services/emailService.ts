@@ -96,11 +96,13 @@ interface TicketAcknowledgementEmail {
 
 // ─── Email functions ─────────────────────────────────────────────────────────
 
+// Returns whether the message actually went out, so the caller can tell the
+// admin to pass the password on by hand when email is unavailable.
 export const sendAccessEmail = async ({
   to,
   name,
   tempPassword,
-}: AccessEmail): Promise<void> => {
+}: AccessEmail): Promise<boolean> => {
   try {
     await send(
       to,
@@ -111,8 +113,10 @@ export const sendAccessEmail = async ({
        <p>You will be asked to change your password on first login.</p>
        <p><a href="${FRONTEND_URL}/login">Login Here</a></p>`,
     );
+    return true;
   } catch (error) {
     console.error("[EMAIL] ❌ Error sending access email to", to, ":", error);
+    return false;
   }
 };
 

@@ -826,8 +826,10 @@ export const createUserAccount = async (req: AuthRequest, res: Response) => {
       include: { department: true },
     });
 
+    let emailSent = false;
+
     try {
-      await sendAccessEmail({
+      emailSent = await sendAccessEmail({
         to: user.email,
         name: user.fullName,
         tempPassword,
@@ -840,8 +842,15 @@ export const createUserAccount = async (req: AuthRequest, res: Response) => {
       );
     }
 
+    // The password is returned once, to the admin who created the account, so
+    // they can hand it over when email is unavailable. It is never stored or
+    // logged in readable form: only its hash is kept.
     return res.status(201).json({
-      message: "Account created and temporary password sent",
+      message: emailSent
+        ? "Account created and temporary password sent"
+        : "Account created, but the email could not be sent. Give the officer the password below.",
+      emailSent,
+      temporaryPassword: tempPassword,
       user: {
         id: user.id,
         fullName: user.fullName,
