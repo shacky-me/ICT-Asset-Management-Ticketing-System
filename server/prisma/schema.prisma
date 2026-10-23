@@ -268,6 +268,9 @@ model DocumentComment {
   authorId   Int
   author     User     @relation(fields: [authorId], references: [id])
   body       String
+  // A private reply is between the writer and the person who raised the
+  // document; other recipients of a circular never see it.
+  isPrivate  Boolean  @default(false)
   createdAt  DateTime @default(now())
 }
 

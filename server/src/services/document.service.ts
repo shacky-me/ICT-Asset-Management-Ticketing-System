@@ -42,15 +42,16 @@ type DocumentForAccess = {
 
 // Who may open a document:
 //  - the person who raised it;
-//  - leadership (PS, Director, Assistant Director), who oversee everything;
-//  - anyone it was shared with directly, or through their department, or
-//    through an "all HODs" / "all staff" share;
+//  - anyone it was sent to by name, through their department, or through an
+//    "all HODs" / "all staff" circular;
 //  - the HOD of the department a staff member raised it from, so they can see
-//    what was sent up and how the PS responded. A document a HOD raised is not
-//    visible to that department's staff unless the HOD shares it with them.
+//    what was sent up and how the PS responded.
+//
+// A memo addressed to one department or a named group is seen by those people
+// alone. Nobody has a standing view of everything, the PS included: they see a
+// document when it is addressed to them, raised by them, or sent to all.
 export function canViewDocument(actor: Actor, document: DocumentForAccess): boolean {
   if (document.initiatorId === actor.id) return true;
-  if (isLeadership(actor.role)) return true;
 
   for (const share of document.shares) {
     if (share.audience === "USER" && share.targetUserId === actor.id) return true;
@@ -75,6 +76,17 @@ export function canViewDocument(actor: Actor, document: DocumentForAccess): bool
   }
 
   return false;
+}
+
+// A private reply is between its writer and the person who raised the
+// document. Everyone else on a circular is left out of it.
+export function canViewComment(
+  actor: Actor,
+  document: { initiatorId: number },
+  comment: { authorId: number; isPrivate: boolean },
+): boolean {
+  if (!comment.isPrivate) return true;
+  return comment.authorId === actor.id || document.initiatorId === actor.id;
 }
 
 // Only the PS decides. Leadership may still read and comment.
@@ -181,6 +193,22 @@ export async function recordEvent(
 
 // ─── Reads ───────────────────────────────────────────────────────────────────
 
+// Removes replies this person is not party to, so a circular never leaks one
+// recipient's message to another.
+function hideOtherPeoplesPrivateReplies<
+  T extends {
+    initiatorId: number;
+    comments: { authorId: number; isPrivate: boolean }[];
+  },
+>(actor: Actor, document: T): T {
+  return {
+    ...document,
+    comments: document.comments.filter((comment) =>
+      canViewComment(actor, document, comment),
+    ),
+  };
+}
+
 export async function listVisibleDocuments(actor: Actor, search?: string) {
   const documents = await prisma.document.findMany({
     include: documentInclude,
@@ -197,7 +225,8 @@ export async function listVisibleDocuments(actor: Actor, search?: string) {
         .join(" ")
         .toLowerCase()
         .includes(query);
-    });
+    })
+    .map((document) => hideOtherPeoplesPrivateReplies(actor, document));
 }
 
 export async function getDocumentForActor(id: number, actor: Actor) {
@@ -211,7 +240,10 @@ export async function getDocumentForActor(id: number, actor: Actor) {
     return { ok: false as const, reason: "forbidden" as const };
   }
 
-  return { ok: true as const, document };
+  return {
+    ok: true as const,
+    document: hideOtherPeoplesPrivateReplies(actor, document),
+  };
 }
 
 // ─── Writes ──────────────────────────────────────────────────────────────────
@@ -241,6 +273,27 @@ export async function createDocument(
 
   await recordEvent(document.id, actor.id, "INITIATED", `Raised ${refNo}`);
   return document;
+}
+
+// Sends one document to several named officers in a single step. Only those
+// people and the sender can see it.
+export async function shareWithPeople(
+  documentId: number,
+  actor: Actor,
+  targetUserIds: number[],
+  note?: string,
+) {
+  const results = [];
+  for (const targetUserId of targetUserIds) {
+    results.push(
+      await shareDocument(documentId, actor, {
+        audience: "USER",
+        targetUserId,
+        ...(note ? { note } : {}),
+      }),
+    );
+  }
+  return results;
 }
 
 export async function shareDocument(
@@ -316,13 +369,24 @@ export async function shareDocument(
   return share;
 }
 
-export async function addComment(documentId: number, actor: Actor, body: string) {
+export async function addComment(
+  documentId: number,
+  actor: Actor,
+  body: string,
+  isPrivate: boolean,
+) {
   const comment = await prisma.documentComment.create({
-    data: { documentId, authorId: actor.id, body },
+    data: { documentId, authorId: actor.id, body, isPrivate },
     include: { author: { select: { id: true, fullName: true, role: true } } },
   });
 
-  await recordEvent(documentId, actor.id, "COMMENTED", body.slice(0, 120));
+  // The trail records that a reply was made; a private one does not quote it.
+  await recordEvent(
+    documentId,
+    actor.id,
+    "COMMENTED",
+    isPrivate ? "Private reply to the sender" : body.slice(0, 120),
+  );
   return comment;
 }
 
@@ -341,7 +405,7 @@ export async function decideDocument(
   // as a comment on the document, which both can already see.
   if (comment) {
     await prisma.documentComment.create({
-      data: { documentId, authorId: actor.id, body: comment },
+      data: { documentId, authorId: actor.id, body: comment, isPrivate: false },
     });
   }
 

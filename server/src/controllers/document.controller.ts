@@ -15,6 +15,7 @@ import {
   listVisibleDocuments,
   recordEvent,
   shareDocument,
+  shareWithPeople,
   type Actor,
 } from "../services/document.service.js";
 import { UPLOAD_DIR } from "../utils/uploads.js";
@@ -70,6 +71,8 @@ export const getDocument = async (req: AuthRequest, res: Response) => {
   return res.status(200).json({
     document: result.document,
     canDecide: canDecideDocument(actor),
+    // Anyone who can open the document can read its files on screen.
+    canPreview: true,
     canDownload: canDownloadAttachment(actor, result.document),
     canShareWith: allowedAudiences(actor.role),
   });
@@ -125,6 +128,25 @@ export const postShare = async (req: AuthRequest, res: Response) => {
   }
 
   try {
+    // Several named officers in one go: each gets their own entry, and only
+    // they and the sender can see the document.
+    const targetUserIds: number[] = Array.isArray(req.body?.targetUserIds)
+      ? req.body.targetUserIds.map(Number).filter(Number.isFinite)
+      : [];
+
+    if (targetUserIds.length > 0) {
+      const shares = await shareWithPeople(
+        id,
+        actor,
+        targetUserIds,
+        req.body?.note ? String(req.body.note).slice(0, 500) : undefined,
+      );
+      return res.status(201).json({
+        message: `Document sent to ${shares.length} ${shares.length === 1 ? "person" : "people"}`,
+        shares,
+      });
+    }
+
     const share = await shareDocument(id, actor, {
       audience: req.body?.audience,
       ...(req.body?.targetUserId ? { targetUserId: Number(req.body.targetUserId) } : {}),
@@ -160,7 +182,16 @@ export const postComment = async (req: AuthRequest, res: Response) => {
       : res.status(403).json({ message: "You cannot comment on this document" });
   }
 
-  const comment = await addComment(id, actor, body);
+  // A reply from a recipient stays between them and the sender unless they
+  // ask for everyone on the document to see it. The sender's own replies are
+  // addressed to the document, so they are open by default.
+  const isSender = result.document.initiatorId === actor.id;
+  const isPrivate =
+    req.body?.visibleToEveryone === undefined
+      ? !isSender
+      : !req.body.visibleToEveryone;
+
+  const comment = await addComment(id, actor, body, isPrivate);
   return res.status(201).json({ message: "Comment added", comment });
 };
 
@@ -250,10 +281,15 @@ export const downloadAttachment = async (req: AuthRequest, res: Response) => {
       : res.status(403).json({ message: "You cannot view this document" });
   }
 
-  if (!canDownloadAttachment(actor, result.document)) {
+  // Reading a file on screen is part of seeing the document. Saving or
+  // printing a critical one stays with leadership, the person who raised it
+  // and anyone it was sent to by name.
+  const isPreview = req.query.inline === "1";
+
+  if (!isPreview && !canDownloadAttachment(actor, result.document)) {
     return res.status(403).json({
       message:
-        "This document is marked critical: only the PS, Director, Assistant Director or the initiator may download it",
+        "This document is marked critical: it can be read on screen, but only the PS, Director, Assistant Director or the initiator may download it",
     });
   }
 
