@@ -94,34 +94,15 @@ export function canDecideDocument(actor: Actor): boolean {
   return isPs(actor.role);
 }
 
-// A document that is not critical can be previewed, downloaded and printed by
-// anyone who can see it.
-//
-// A critical one is narrower. It stays open to the people who are actually
-// handling it — leadership, the person who raised it, anyone it was sent to by
-// name, and the HOD overseeing that department — but not to people who merely
-// received it through a broad "all staff", "all HODs" or whole-department
-// share.
+// Anyone who can open a document can also read, save and print its files.
+// Access is decided by who the document was sent to, not by the marking: a
+// critical document is simply addressed narrowly, and the padlock tells
+// everyone handling it to treat the contents with care.
 export function canDownloadAttachment(
-  actor: Actor,
-  document: DocumentForAccess & { isCritical: boolean },
+  _actor: Actor,
+  _document: DocumentForAccess & { isCritical: boolean },
 ): boolean {
-  if (!document.isCritical) return true;
-  if (isLeadership(actor.role)) return true;
-  if (document.initiatorId === actor.id) return true;
-
-  const sentToThemByName = document.shares.some(
-    (share) => share.audience === "USER" && share.targetUserId === actor.id,
-  );
-  if (sentToThemByName) return true;
-
-  const overseesTheDepartment =
-    isHod(actor.role) &&
-    document.departmentId === actor.departmentId &&
-    !isHod(document.initiator.role) &&
-    !isLeadership(document.initiator.role);
-
-  return overseesTheDepartment;
+  return true;
 }
 
 // Which audiences a role may share with.
