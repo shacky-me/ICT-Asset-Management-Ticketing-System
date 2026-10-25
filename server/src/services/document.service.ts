@@ -111,8 +111,23 @@ export function allowedAudiences(role: string): DocumentAudience[] {
   if (isLeadership(role)) return ["USER", "DEPARTMENT_STAFF", "ALL_HODS"];
   // HODs reach any department and its staff.
   if (isHod(role)) return ["USER", "DEPARTMENT_STAFF"];
-  // Everyone else shares upward, to a named person only.
-  return ["USER"];
+  // Everyone else sends upward to a named officer, and may circulate to
+  // everyone in their own department.
+  return ["USER", "DEPARTMENT_STAFF"];
+}
+
+// A HOD or leadership may address any department. Everyone else circulates
+// within their own section only.
+export function departmentShareScope(role: string): "ANY" | "OWN" {
+  return isLeadership(role) || isHod(role) ? "ANY" : "OWN";
+}
+
+export function canShareWithDepartment(
+  actor: Actor,
+  targetDepartmentId: number,
+): boolean {
+  if (departmentShareScope(actor.role) === "ANY") return true;
+  return targetDepartmentId === actor.departmentId;
 }
 
 // Staff may only send a document to the PS or to a HOD.
@@ -327,6 +342,13 @@ export async function shareDocument(
     });
 
     if (!department) throw new Error("Department not found");
+
+    if (!canShareWithDepartment(actor, department.id)) {
+      throw new Error(
+        "You can only send a document to everyone in your own department",
+      );
+    }
+
     detail = `Shared with all staff in ${department.name}`;
   }
 

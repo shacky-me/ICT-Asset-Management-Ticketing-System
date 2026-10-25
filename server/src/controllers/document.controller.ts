@@ -10,6 +10,7 @@ import {
   canDecideDocument,
   canDownloadAttachment,
   createDocument,
+  departmentShareScope,
   decideDocument,
   getDocumentForActor,
   listVisibleDocuments,
@@ -43,6 +44,9 @@ export const listDocuments = async (req: AuthRequest, res: Response) => {
       documents,
       canShareWith: allowedAudiences(actor.role),
       canDecide: canDecideDocument(actor),
+      // Which departments this officer may circulate to, and their own.
+      departmentShareScope: departmentShareScope(actor.role),
+      ownDepartmentId: actor.departmentId,
     });
   } catch (error) {
     return res
@@ -75,6 +79,8 @@ export const getDocument = async (req: AuthRequest, res: Response) => {
     canPreview: true,
     canDownload: canDownloadAttachment(actor, result.document),
     canShareWith: allowedAudiences(actor.role),
+    departmentShareScope: departmentShareScope(actor.role),
+    ownDepartmentId: actor.departmentId,
   });
 };
 
