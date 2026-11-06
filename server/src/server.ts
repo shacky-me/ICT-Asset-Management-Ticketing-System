@@ -28,10 +28,44 @@ const LOCAL_ORIGINS = [
   "http://127.0.0.1:3000",
 ];
 
+// The office install serves the frontend from the server VM itself, over
+// plain HTTP on the office LAN, and that machine's address is handed out by
+// DHCP: it has moved four times. Pinning it in FRONTEND_URL means every move
+// locks every user out with "Origin not allowed", so a private-network
+// address is accepted on its own terms. Nothing routable from the internet
+// matches, and the browser still has to be on the office network to reach
+// the port at all.
+function isPrivateNetworkOrigin(origin: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+
+  const octets = url.hostname.split(".");
+  if (octets.length !== 4) return false;
+
+  const [a, b] = octets.map(Number);
+  if (!octets.every((part) => /^\d{1,3}$/.test(part))) return false;
+  if (a === undefined || b === undefined) return false;
+  if ([a, b].some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+
+  // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+  if (a === 10) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  return a === 192 && b === 168;
+}
+
 function isAllowedOrigin(origin?: string): boolean {
   if (!origin) return true;
   if (allowedOrigins.includes(origin)) return true;
   if (LOCAL_ORIGINS.includes(origin)) return true;
+  if (isPrivateNetworkOrigin(origin)) return true;
   return origin === PRODUCTION_ORIGIN;
 }
 
